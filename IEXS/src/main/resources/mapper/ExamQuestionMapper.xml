@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.mapper.ExamQuestionMapper">
+
+    <resultMap id="BaseResultMap" type="ExamQuestion">
+        <id property="id" column="id"/>
+        <result property="examId" column="exam_id"/>
+        <result property="questionId" column="question_id"/>
+        <result property="orderNum" column="order_num"/>
+    </resultMap>
+
+    <select id="selectByExamId" parameterType="Integer" resultMap="BaseResultMap">
+        SELECT * FROM exam_question WHERE exam_id = #{examId} ORDER BY order_num ASC
+    </select>
+
+    <select id="selectQuestionIdsByExamId" parameterType="Integer" resultType="Integer">
+        SELECT question_id FROM exam_question WHERE exam_id = #{examId} ORDER BY order_num ASC
+    </select>
+
+    <insert id="insert" parameterType="ExamQuestion" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO exam_question (exam_id, question_id, order_num)
+        VALUES (#{examId}, #{questionId}, #{orderNum})
+    </insert>
+
+    <delete id="deleteByExamId" parameterType="Integer">
+        DELETE FROM exam_question WHERE exam_id = #{examId}
+    </delete>
+
+</mapper>
+

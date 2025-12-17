@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.mapper.QuestionMapper">
+
+    <resultMap id="BaseResultMap" type="Question">
+        <id property="id" column="id"/>
+        <result property="title" column="title"/>
+        <result property="type" column="type"/>
+        <result property="optionA" column="option_a"/>
+        <result property="optionB" column="option_b"/>
+        <result property="optionC" column="option_c"/>
+        <result property="optionD" column="option_d"/>
+        <result property="correctAnswer" column="correct_answer"/>
+        <result property="analysis" column="analysis"/>
+        <result property="score" column="score"/>
+        <result property="difficulty" column="difficulty"/>
+        <result property="creatorId" column="creator_id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="selectById" parameterType="Integer" resultMap="BaseResultMap">
+        SELECT * FROM question WHERE id = #{id}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM question ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByCreatorId" parameterType="Integer" resultMap="BaseResultMap">
+        SELECT * FROM question WHERE creator_id = #{creatorId} ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="Question" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO question (title, type, option_a, option_b, option_c, option_d, 
+                             correct_answer, analysis, score, difficulty, creator_id)
+        VALUES (#{title}, #{type}, #{optionA}, #{optionB}, #{optionC}, #{optionD},
+                #{correctAnswer}, #{analysis}, #{score}, #{difficulty}, #{creatorId})
+    </insert>
+
+    <update id="update" parameterType="Question">
+        UPDATE question
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="type != null">type = #{type},</if>
+            <if test="optionA != null">option_a = #{optionA},</if>
+            <if test="optionB != null">option_b = #{optionB},</if>
+            <if test="optionC != null">option_c = #{optionC},</if>
+            <if test="optionD != null">option_d = #{optionD},</if>
+            <if test="correctAnswer != null">correct_answer = #{correctAnswer},</if>
+            <if test="analysis != null">analysis = #{analysis},</if>
+            <if test="score != null">score = #{score},</if>
+            <if test="difficulty != null">difficulty = #{difficulty},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete" parameterType="Integer">
+        DELETE FROM question WHERE id = #{id}
+    </delete>
+
+</mapper>
+

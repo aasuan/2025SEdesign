@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.example.mapper.ExamRecordMapper">
+
+    <resultMap id="BaseResultMap" type="ExamRecord">
+        <id property="id" column="id"/>
+        <result property="examRoomId" column="exam_room_id"/>
+        <result property="questionId" column="question_id"/>
+        <result property="studentAnswer" column="student_answer"/>
+        <result property="score" column="score"/>
+        <result property="answerTime" column="answer_time"/>
+    </resultMap>
+
+    <select id="selectById" parameterType="Integer" resultMap="BaseResultMap">
+        SELECT * FROM exam_record WHERE id = #{id}
+    </select>
+
+    <select id="selectByExamRoomId" parameterType="Integer" resultMap="BaseResultMap">
+        SELECT * FROM exam_record WHERE exam_room_id = #{examRoomId}
+    </select>
+
+    <select id="selectByExamRoomAndQuestion" resultMap="BaseResultMap">
+        SELECT * FROM exam_record 
+        WHERE exam_room_id = #{examRoomId} AND question_id = #{questionId}
+    </select>
+
+    <insert id="insert" parameterType="ExamRecord" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO exam_record (exam_room_id, question_id, student_answer, score)
+        VALUES (#{examRoomId}, #{questionId}, #{studentAnswer}, #{score})
+    </insert>
+
+    <update id="update" parameterType="ExamRecord">
+        UPDATE exam_record
+        <set>
+            <if test="studentAnswer != null">student_answer = #{studentAnswer},</if>
+            <if test="score != null">score = #{score},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+</mapper>
+

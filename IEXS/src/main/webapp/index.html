@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧考试系统 - API测试页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>智慧考试系统</h1>
+        <p class="subtitle">API测试页面 - 基于SSM+Redis+MySQL</p>
+
+        <!-- 用户登录 -->
+        <div class="section">
+            <h2>1. 用户登录</h2>
+            <div class="form-group">
+                <label>用户名:</label>
+                <input type="text" id="loginUsername" value="student" placeholder="student / teacher / admin">
+            </div>
+            <div class="form-group">
+                <label>密码:</label>
+                <input type="password" id="loginPassword" value="student123" placeholder="student123 / teacher123 / admin123">
+            </div>
+            <button onclick="login()">登录</button>
+            <div id="loginResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- 用户注册 -->
+        <div class="section">
+            <h2>2. 用户注册</h2>
+            <div class="form-group">
+                <label>用户名:</label>
+                <input type="text" id="regUsername" placeholder="username">
+            </div>
+            <div class="form-group">
+                <label>密码:</label>
+                <input type="password" id="regPassword" placeholder="password">
+            </div>
+            <div class="form-group">
+                <label>真实姓名:</label>
+                <input type="text" id="regRealName" placeholder="real name">
+            </div>
+            <div class="form-group">
+                <label>角色:</label>
+                <select id="regRole">
+                    <option value="0">学生</option>
+                    <option value="1">老师</option>
+                </select>
+            </div>
+            <button onclick="register()">注册</button>
+            <div id="regResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- 查看考试 -->
+        <div class="section">
+            <h2>3. 查看可参加的考试</h2>
+            <button onclick="getAvailableExams()">获取考试列表</button>
+            <div id="examResult" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- 用户信息 -->
+        <div class="section">
+            <h2>4. 查看当前用户信息</h2>
+            <button onclick="getUserInfo()">获取用户信息</button>
+            <div id="userInfoResult" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        function showResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = 'result ' + (isError ? 'error' : 'success');
+            element.textContent = JSON.stringify(data, null, 2);
+        }
+
+        async function apiCall(url, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'
+            };
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+            const response = await fetch(API_BASE + url, options);
+            return await response.json();
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            try {
+                const result = await apiCall('/user/login', 'POST', { username, password });
+                showResult('loginResult', result, result.code !== 200);
+            } catch (error) {
+                showResult('loginResult', { error: error.message }, true);
+            }
+        }
+
+        async function register() {
+            const user = {
+                username: document.getElementById('regUsername').value,
+                password: document.getElementById('regPassword').value,
+                realName: document.getElementById('regRealName').value,
+                role: parseInt(document.getElementById('regRole').value)
+            };
+            try {
+                const result = await apiCall('/user/register', 'POST', user);
+                showResult('regResult', result, result.code !== 200);
+            } catch (error) {
+                showResult('regResult', { error: error.message }, true);
+            }
+        }
+
+        async function getAvailableExams() {
+            try {
+                const result = await apiCall('/exam/available');
+                showResult('examResult', result, result.code !== 200);
+            } catch (error) {
+                showResult('examResult', { error: error.message }, true);
+            }
+        }
+
+        async function getUserInfo() {
+            try {
+                const result = await apiCall('/user/info');
+                showResult('userInfoResult', result, result.code !== 200);
+            } catch (error) {
+                showResult('userInfoResult', { error: error.message }, true);
+            }
+        }
+    </script>
+</body>
+</html>
+
