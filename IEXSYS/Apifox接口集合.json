@@ -1,0 +1,103 @@
+{
+  "info": {
+    "name": "IEXSYS 登录注册接口",
+    "description": "IEXSYS 项目认证相关接口集合",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "用户注册",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"123456\",\n  \"realName\": \"测试用户\",\n  \"email\": \"test@example.com\",\n  \"phone\": \"13800138000\",\n  \"role\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "register"]
+        },
+        "description": "用户注册接口\n\n**参数说明：**\n- username: 用户名（必填，3-16 字符）\n- password: 密码（必填，6-24 字符）\n- realName: 真实姓名（可选）\n- email: 邮箱（可选，需符合邮箱格式）\n- phone: 手机号（可选）\n- role: 角色（可选，0-学生，1-老师，2-管理员，默认为 0）"
+      },
+      "response": []
+    },
+    {
+      "name": "用户登录",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"123456\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        },
+        "description": "用户登录接口\n\n登录成功后会设置 Session，后续需要登录的接口会自动携带 Cookie。"
+      },
+      "response": []
+    },
+    {
+      "name": "获取当前用户信息",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me"]
+        },
+        "description": "获取当前登录用户信息\n\n**注意：** 需要先登录，确保有有效的 Session。"
+      },
+      "response": []
+    },
+    {
+      "name": "用户退出",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/logout",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "logout"]
+        },
+        "description": "用户退出登录接口\n\n退出后会清除 Session。"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ]
+}
+
