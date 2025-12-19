@@ -68,7 +68,7 @@ public class AuthController {
         profile.setRealName(user.getRealName());
         profile.setEmail(user.getEmail());
         profile.setPhone(user.getPhone());
-        profile.setRole(user.getRole());
+        profile.setStatus(user.getStatus());
         return profile;
     }
 }

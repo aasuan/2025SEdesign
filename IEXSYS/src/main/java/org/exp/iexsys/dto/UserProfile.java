@@ -4,18 +4,19 @@ import java.io.Serializable;
 
 public class UserProfile implements Serializable {
     private static final long serialVersionUID = 1L;
-    private Integer id;
+    private Long id;
     private String username;
     private String realName;
     private String email;
     private String phone;
-    private Integer role;
+    /** 用户状态：Active / Inactive */
+    private String status;
 
-    public Integer getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -35,6 +36,14 @@ public class UserProfile implements Serializable {
         this.realName = realName;
     }
 
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
     public String getEmail() {
         return email;
     }
@@ -49,14 +58,6 @@ public class UserProfile implements Serializable {
 
     public void setPhone(String phone) {
         this.phone = phone;
-    }
-
-    public Integer getRole() {
-        return role;
-    }
-
-    public void setRole(Integer role) {
-        this.role = role;
     }
 }
 

@@ -21,9 +21,6 @@ public class RegisterRequest {
 
     private String phone;
 
-    /** 0-学生 1-老师 2-管理员；为空时默认学生 */
-    private Integer role;
-
     public String getUsername() {
         return username;
     }
@@ -62,14 +59,6 @@ public class RegisterRequest {
 
     public void setPhone(String phone) {
         this.phone = phone;
-    }
-
-    public Integer getRole() {
-        return role;
-    }
-
-    public void setRole(Integer role) {
-        this.role = role;
     }
 }
 

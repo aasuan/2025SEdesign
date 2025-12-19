@@ -32,7 +32,6 @@ public class UserServiceImpl implements UserService {
         user.setRealName(request.getRealName());
         user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
-        user.setRole(request.getRole() == null ? 0 : request.getRole());
         int rows = userMapper.insert(user);
         if (rows <= 0) {
             throw new IllegalStateException("注册失败，请稍后重试");
@@ -51,7 +50,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User findById(Integer id) {
-        return userMapper.selectById(id);
+        return userMapper.selectById(id == null ? null : id.longValue());
     }
 
     @Override

@@ -7,7 +7,7 @@ import org.exp.iexsys.domain.User;
 @Mapper
 public interface UserMapper {
 
-    User selectById(@Param("id") Integer id);
+    User selectById(@Param("id") Long id);
 
     User selectByUsername(@Param("username") String username);
 

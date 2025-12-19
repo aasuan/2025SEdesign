@@ -4,25 +4,30 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 用户实体。
+ * 用户实体，对应数据表 user。
  */
 public class User implements Serializable {
-    private Integer id;
+    /** 主键，对应 user_id */
+    private Long id;
     private String username;
     private String password;
     private String realName;
+    /** 邮箱 */
     private String email;
+    /** 手机号 */
     private String phone;
-    /** 0-学生 1-老师 2-管理员 */
-    private Integer role;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
+    /** 用户状态：Active / Inactive */
+    private String status;
+    /** 创建时间 */
+    private LocalDateTime createdAt;
+    /** 最近更新时间 */
+    private LocalDateTime updatedAt;
 
-    public Integer getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -66,28 +71,28 @@ public class User implements Serializable {
         this.phone = phone;
     }
 
-    public Integer getRole() {
-        return role;
+    public String getStatus() {
+        return status;
     }
 
-    public void setRole(Integer role) {
-        this.role = role;
+    public void setStatus(String status) {
+        this.status = status;
     }
 
-    public LocalDateTime getCreateTime() {
-        return createTime;
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 
-    public void setCreateTime(LocalDateTime createTime) {
-        this.createTime = createTime;
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
-    public LocalDateTime getUpdateTime() {
-        return updateTime;
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
     }
 
-    public void setUpdateTime(LocalDateTime updateTime) {
-        this.updateTime = updateTime;
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
     }
 }
 
