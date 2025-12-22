@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.exp.iexsys.mapper.PaperMapper">
+
+    <resultMap id="PaperResultMap" type="org.exp.iexsys.domain.Paper">
+        <id property="paperId" column="paper_id"/>
+        <result property="paperName" column="paper_name"/>
+        <result property="creatorId" column="creator_id"/>
+        <result property="totalScore" column="total_score"/>
+        <result property="draft" column="is_draft"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="extraInfo" column="extra_info"/>
+    </resultMap>
+
+    <sql id="BaseSelect">
+        SELECT paper_id, paper_name, creator_id, total_score, is_draft, created_at, updated_at, extra_info
+        FROM paper
+    </sql>
+
+    <select id="selectById" parameterType="long" resultMap="PaperResultMap">
+        <include refid="BaseSelect"/>
+        WHERE paper_id = #{id}
+    </select>
+
+    <select id="listByCreator" resultMap="PaperResultMap">
+        <include refid="BaseSelect"/>
+        <where>
+            <if test="creatorId != null">
+                creator_id = #{creatorId}
+            </if>
+        </where>
+        ORDER BY paper_id DESC
+    </select>
+
+    <insert id="insert" parameterType="org.exp.iexsys.domain.Paper" useGeneratedKeys="true" keyProperty="paperId">
+        INSERT INTO paper (paper_name, creator_id, total_score, is_draft, extra_info)
+        VALUES (#{paperName}, #{creatorId}, #{totalScore}, #{draft}, #{extraInfo})
+    </insert>
+
+    <update id="updateBasic" parameterType="org.exp.iexsys.domain.Paper">
+        UPDATE paper
+        SET paper_name = #{paperName},
+            total_score = #{totalScore},
+            is_draft = #{draft},
+            extra_info = #{extraInfo},
+            updated_at = NOW()
+        WHERE paper_id = #{paperId}
+    </update>
+</mapper>

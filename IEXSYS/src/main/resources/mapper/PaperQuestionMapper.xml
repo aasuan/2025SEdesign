@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.exp.iexsys.mapper.PaperQuestionMapper">
+
+    <resultMap id="PaperQuestionResultMap" type="org.exp.iexsys.domain.PaperQuestion">
+        <id property="pqId" column="pq_id"/>
+        <result property="paperId" column="paper_id"/>
+        <result property="questionId" column="question_id"/>
+        <result property="questionScore" column="question_score"/>
+        <result property="sequenceNum" column="sequence_num"/>
+    </resultMap>
+
+    <delete id="deleteByPaperId" parameterType="long">
+        DELETE FROM paper_question WHERE paper_id = #{paperId}
+    </delete>
+
+    <insert id="insertBatch">
+        INSERT INTO paper_question (paper_id, question_id, question_score, sequence_num)
+        VALUES
+        <foreach collection="items" item="item" separator=",">
+            (#{item.paperId}, #{item.questionId}, #{item.questionScore}, #{item.sequenceNum})
+        </foreach>
+    </insert>
+
+    <select id="selectByPaperId" parameterType="long" resultMap="PaperQuestionResultMap">
+        SELECT pq_id, paper_id, question_id, question_score, sequence_num
+        FROM paper_question
+        WHERE paper_id = #{paperId}
+        ORDER BY sequence_num ASC
+    </select>
+</mapper>

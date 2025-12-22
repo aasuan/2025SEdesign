@@ -105,7 +105,10 @@ CREATE TABLE `paper` (
     `paper_name` VARCHAR(255) NOT NULL COMMENT '试卷名称',
     `creator_id` BIGINT UNSIGNED NOT NULL COMMENT '组卷教师ID',
     `total_score` DECIMAL(7, 2) NOT NULL DEFAULT 0 COMMENT '试卷总分',
+    `is_draft` TINYINT(1) NOT NULL DEFAULT 1 COMMENT '是否草稿',
     `extra_info` JSON NULL COMMENT '额外拓展字段 (智能组卷策略JSON)',
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`paper_id`),
     KEY `idx_paper_creator_id` (`creator_id`),
     CONSTRAINT `fk_paper_creator` FOREIGN KEY (`creator_id`) REFERENCES `user` (`user_id`) ON DELETE RESTRICT ON UPDATE CASCADE

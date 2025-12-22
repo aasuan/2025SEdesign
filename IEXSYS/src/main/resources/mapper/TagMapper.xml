@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.exp.iexsys.mapper.TagMapper">
+
+    <resultMap id="TagResultMap" type="org.exp.iexsys.domain.Tag">
+        <id property="tagId" column="tag_id"/>
+        <result property="tagName" column="tag_name"/>
+        <result property="tagType" column="tag_type"/>
+        <result property="extraInfo" column="extra_info"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="selectById" parameterType="int" resultMap="TagResultMap">
+        SELECT tag_id, tag_name, tag_type, extra_info, created_at, updated_at
+        FROM tag
+        WHERE tag_id = #{id}
+    </select>
+
+    <select id="selectByName" parameterType="string" resultMap="TagResultMap">
+        SELECT tag_id, tag_name, tag_type, extra_info, created_at, updated_at
+        FROM tag
+        WHERE tag_name = #{name}
+    </select>
+
+    <select id="selectAll" resultMap="TagResultMap">
+        SELECT tag_id, tag_name, tag_type, extra_info, created_at, updated_at
+        FROM tag
+        <where>
+            <if test="tagType != null and tagType != ''">
+                tag_type = #{tagType}
+            </if>
+        </where>
+        ORDER BY tag_id DESC
+    </select>
+
+    <insert id="insert" parameterType="org.exp.iexsys.domain.Tag" useGeneratedKeys="true" keyProperty="tagId">
+        INSERT INTO tag (tag_name, tag_type, extra_info)
+        VALUES (#{tagName}, #{tagType}, #{extraInfo})
+    </insert>
+</mapper>
