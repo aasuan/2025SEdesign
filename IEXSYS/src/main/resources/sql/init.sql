@@ -39,12 +39,15 @@ CREATE TABLE `user` (
     `password_hash` VARCHAR(255) NOT NULL COMMENT '密码哈希值',
     `real_name` VARCHAR(100) NOT NULL COMMENT '真实姓名',
     `email` VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
-    `phone` VARCHAR(20) DEFAULT NULL COMMENT '手机号',
-    `status` ENUM('Active', 'Inactive') NOT NULL DEFAULT 'Active' COMMENT '用户状态 (Active, Inactive)',
+    `phone_number` VARCHAR(20) DEFAULT NULL COMMENT '手机号',
+    `user_role` ENUM('管理员', '教师', '学生') NOT NULL DEFAULT '学生' COMMENT '用户角色',
+    `status` ENUM('Active', 'Locked') NOT NULL DEFAULT 'Active' COMMENT '用户状态 (Active, Locked)',
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最近更新时间',
     PRIMARY KEY (`user_id`),
-    UNIQUE KEY `uk_username` (`username`)
+    UNIQUE KEY `uk_username` (`username`),
+    UNIQUE KEY `uk_phone` (`phone_number`),
+    UNIQUE KEY `uk_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- 用户-角色关联表
@@ -189,10 +192,10 @@ INSERT INTO `role` (`role_name`, `description`) VALUES
 ('Teacher', '教师'),
 ('Student', '学生');
 
-INSERT INTO `user` (`username`, `password_hash`, `real_name`, `email`, `phone`, `status`) VALUES
-('admin', '$2a$10$yggZNgxUjE1Zh3vhIebhOe9ZLzaaaTdL.JnJt5TxqHPj9mzHKorTm', '管理员', 'admin@example.com', '13800000001', 'Active'),  -- 原始密码：admin123
-('teacher', '$2a$10$aqrm7gv8R3bYVjJPQaVDIeSTC3aVLslBJPDVBq5J46lfLjyJxv03e', '张老师', 'teacher@example.com', '13800000002', 'Active'), -- 原始密码：teacher123
-('student', '$2a$10$lZZ19TTsraN0C9c9e3hV7OxBY70tDIbdwN9cbo59PiVeKnM2PyMq6', '李同学', 'student@example.com', '13800000003', 'Active'); -- 原始密码：student123
+INSERT INTO `user` (`username`, `password_hash`, `real_name`, `email`, `phone_number`, `user_role`, `status`) VALUES
+('admin', '$2a$10$yggZNgxUjE1Zh3vhIebhOe9ZLzaaaTdL.JnJt5TxqHPj9mzHKorTm', '管理员', 'admin@example.com', '13800000001', '管理员', 'Active'),  -- 原始密码：admin123
+('teacher', '$2a$10$aqrm7gv8R3bYVjJPQaVDIeSTC3aVLslBJPDVBq5J46lfLjyJxv03e', '张老师', 'teacher@example.com', '13800000002', '教师', 'Active'), -- 原始密码：teacher123
+('student', '$2a$10$lZZ19TTsraN0C9c9e3hV7OxBY70tDIbdwN9cbo59PiVeKnM2PyMq6', '李同学', 'student@example.com', '13800000003', '学生', 'Active'); -- 原始密码：student123
 
 -- 将示例用户与角色关联
 INSERT INTO `user_role` (`user_id`, `role_id`)

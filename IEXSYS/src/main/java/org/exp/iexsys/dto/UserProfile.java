@@ -9,6 +9,7 @@ public class UserProfile implements Serializable {
     private String realName;
     private String email;
     private String phone;
+    private String userRole;
     /** 用户状态：Active / Inactive */
     private String status;
 
@@ -58,6 +59,14 @@ public class UserProfile implements Serializable {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getUserRole() {
+        return userRole;
+    }
+
+    public void setUserRole(String userRole) {
+        this.userRole = userRole;
     }
 }
 

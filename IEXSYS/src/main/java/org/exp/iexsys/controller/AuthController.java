@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.exp.iexsys.common.ApiResponse;
 import org.exp.iexsys.domain.User;
+import org.exp.iexsys.dto.BindPhoneRequest;
 import org.exp.iexsys.dto.LoginRequest;
 import org.exp.iexsys.dto.RegisterRequest;
 import org.exp.iexsys.dto.UserProfile;
@@ -57,6 +58,18 @@ public class AuthController {
         return ApiResponse.success(profile);
     }
 
+    @PostMapping("/bind-phone")
+    public ApiResponse<UserProfile> bindPhone(@Valid @RequestBody BindPhoneRequest request, HttpSession session) {
+        UserProfile current = (UserProfile) session.getAttribute(SESSION_KEY);
+        if (current == null) {
+            return ApiResponse.failure(401, "未登录");
+        }
+        User user = userService.bindPhone(current.getId(), request.getPhone());
+        UserProfile profile = toProfile(user);
+        storeSession(session, profile);
+        return ApiResponse.success("绑定成功", profile);
+    }
+
     private void storeSession(HttpSession session, UserProfile profile) {
         session.setAttribute(SESSION_KEY, profile);
     }
@@ -68,6 +81,7 @@ public class AuthController {
         profile.setRealName(user.getRealName());
         profile.setEmail(user.getEmail());
         profile.setPhone(user.getPhone());
+        profile.setUserRole(user.getUserRole());
         profile.setStatus(user.getStatus());
         return profile;
     }

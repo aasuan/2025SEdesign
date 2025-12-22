@@ -18,5 +18,10 @@ public interface UserService {
     User findById(Integer id);
 
     User findByUsername(String username);
+
+    /**
+     * 绑定或更新手机号（需校验唯一性）。
+     */
+    User bindPhone(Long userId, String phone);
 }
 

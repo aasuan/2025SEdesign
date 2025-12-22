@@ -6,6 +6,7 @@ import org.exp.iexsys.mapper.UserMapper;
 import org.exp.iexsys.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Service
@@ -26,12 +27,26 @@ public class UserServiceImpl implements UserService {
         if (exists != null) {
             throw new IllegalArgumentException("用户名已存在");
         }
+        if (StringUtils.hasText(request.getEmail())) {
+            User byEmail = userMapper.selectByEmail(request.getEmail());
+            if (byEmail != null) {
+                throw new IllegalArgumentException("邮箱已被占用");
+            }
+        }
+        if (StringUtils.hasText(request.getPhone())) {
+            User byPhone = userMapper.selectByPhone(request.getPhone());
+            if (byPhone != null) {
+                throw new IllegalArgumentException("手机号已被占用");
+            }
+        }
         User user = new User();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRealName(request.getRealName());
         user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
+        // 默认注册角色为学生
+        user.setUserRole("学生");
         int rows = userMapper.insert(user);
         if (rows <= 0) {
             throw new IllegalStateException("注册失败，请稍后重试");
@@ -45,6 +60,9 @@ public class UserServiceImpl implements UserService {
         if (user == null || !passwordEncoder.matches(rawPassword, user.getPassword())) {
             throw new IllegalArgumentException("用户名或密码错误");
         }
+        if ("Locked".equalsIgnoreCase(user.getStatus())) {
+            throw new IllegalArgumentException("账户已锁定");
+        }
         return user;
     }
 
@@ -56,6 +74,25 @@ public class UserServiceImpl implements UserService {
     @Override
     public User findByUsername(String username) {
         return userMapper.selectByUsername(username);
+    }
+
+    @Override
+    public User bindPhone(Long userId, String phone) {
+        if (userId == null) {
+            throw new IllegalArgumentException("未登录");
+        }
+        if (!StringUtils.hasText(phone)) {
+            throw new IllegalArgumentException("手机号不能为空");
+        }
+        User byPhone = userMapper.selectByPhone(phone);
+        if (byPhone != null && !byPhone.getId().equals(userId)) {
+            throw new IllegalArgumentException("手机号已被其他账户绑定");
+        }
+        int updated = userMapper.updatePhone(userId, phone);
+        if (updated <= 0) {
+            throw new IllegalStateException("绑定手机号失败，请稍后再试");
+        }
+        return userMapper.selectById(userId);
     }
 }
 

@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 public class RegisterRequest {
 
     @NotBlank(message = "用户名不能为空")
-    @Size(min = 2, max = 16, message = "用户名长度需在3-16之间")
+    @Size(min = 2, max = 16, message = "用户名长度需在2-16之间")
     private String username;
 
     @NotBlank(message = "密码不能为空")

@@ -16,6 +16,8 @@ public class User implements Serializable {
     private String email;
     /** 手机号 */
     private String phone;
+    /** 用户角色：管理员/教师/学生 */
+    private String userRole;
     /** 用户状态：Active / Inactive */
     private String status;
     /** 创建时间 */
@@ -69,6 +71,14 @@ public class User implements Serializable {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getUserRole() {
+        return userRole;
+    }
+
+    public void setUserRole(String userRole) {
+        this.userRole = userRole;
     }
 
     public String getStatus() {
