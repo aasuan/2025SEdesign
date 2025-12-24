@@ -1,0 +1,8 @@
+{
+  "name": "SmartExam - 智能在线考核系统",
+  "description": "一个功能全面的在线考试系统，具有基于角色的访问控制、自动评分、AI 辅助分析和在线监考功能。",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
