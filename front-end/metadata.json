@@ -1,0 +1,8 @@
+{
+  "name": "SmartExam",
+  "description": "基于 React、TypeScript 和 Gemini API 构建的综合在线考试平台，具有 AI 辅助出题、监考和成绩分析功能。",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
