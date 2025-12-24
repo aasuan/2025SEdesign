@@ -21,6 +21,24 @@ public class UserServiceImpl implements UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    private static final String ROLE_ADMIN = "Admin";
+    private static final String ROLE_TEACHER = "Teacher";
+    private static final String ROLE_STUDENT = "Student";
+
+    private String normalizeRole(String role) {
+        if (!StringUtils.hasText(role)) {
+            return ROLE_STUDENT;
+        }
+        switch (role.trim()) {
+            case ROLE_ADMIN:
+            case ROLE_TEACHER:
+            case ROLE_STUDENT:
+                return role.trim();
+            default:
+                return ROLE_STUDENT;
+        }
+    }
+
     @Override
     public User register(RegisterRequest request) {
         User exists = userMapper.selectByUsername(request.getUsername());
@@ -45,8 +63,8 @@ public class UserServiceImpl implements UserService {
         user.setRealName(request.getRealName());
         user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
-        // 默认注册角色为学生
-        user.setUserRole("学生");
+        // 角色：支持 Admin/Teacher/Student，默认 Student
+        user.setUserRole(normalizeRole(request.getUserRole()));
         int rows = userMapper.insert(user);
         if (rows <= 0) {
             throw new IllegalStateException("注册失败，请稍后重试");

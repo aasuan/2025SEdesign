@@ -4,44 +4,63 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+export type Difficulty = 'easy' | 'medium' | 'hard';
+export type QuestionType = 'single' | 'multiple' | 'judge' | 'short';
+
 export interface UserProfile {
   id: number;
   username: string;
-  realName: string;
-  email: string;
-  phone: string;
-  userRole: 'Admin' | 'Teacher' | 'Student';
-  status: 'Active' | 'Inactive' | 'Locked';
+  realName?: string;
+  email?: string;
+  phone?: string;
+  userRole?: string;
+  status?: string;
 }
 
-export enum QuestionType {
-  SingleChoice = 'SingleChoice',
-  MultiChoice = 'MultiChoice',
-  TrueFalse = 'TrueFalse',
-  ShortAnswer = 'ShortAnswer',
-  FillBlank = 'FillBlank', // Added FillBlank
-  Programming = 'Programming'
+export interface Tag {
+  tagId: number;
+  tagName: string;
+  tagType: string;
+  extraInfo?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Question {
   questionId: number;
   creatorId: number;
   questionType: QuestionType;
-  difficulty: '简单' | '中等' | '困难';
+  difficulty: Difficulty;
   content: string;
-  options?: string[]; // JSON string in DB, array here for ease
+  options?: Record<string, string> | null;
   answer: string;
-  analysis?: string; // Added explanation/analysis
   defaultScore: number;
-  tags: string[]; // Changed to string[]
+  active?: boolean;
+  tagIds?: number[];
+  tagNames?: string[];
+  analysis?: string;
+}
+
+export interface QuestionListResult {
+  list: Question[];
+  total: number;
+  page: number;
+  size: number;
 }
 
 export interface PaperQuestionItem {
+  pqId?: number;
+  paperId: number;
   questionId: number;
   questionScore: number;
   sequenceNum: number;
-  // Hydrated for UI
   question?: Question;
+}
+
+export interface PaperRule {
+  questionType: QuestionType;
+  count: number;
+  scorePerQuestion?: number;
 }
 
 export interface Paper {
@@ -49,8 +68,10 @@ export interface Paper {
   paperName: string;
   creatorId: number;
   totalScore: number;
-  isDraft: boolean;
-  questions: PaperQuestionItem[];
+  draft: boolean;
+  extraInfo?: string;
+  items?: PaperQuestionItem[];
+  questions?: PaperQuestionItem[]; // alias for UI compatibility
 }
 
 export interface Exam {
@@ -62,7 +83,7 @@ export interface Exam {
   durationMinutes: number;
   proctorId: number;
   status: 'Pending' | 'Active' | 'Finished' | 'Canceled';
-  paper?: Paper; // Hydrated for UI
+  paper?: Paper;
 }
 
 export interface StudentAnswer {
@@ -75,7 +96,7 @@ export interface StudentAnswer {
   obtainedScore: number;
   graderId?: number;
   gradeTime?: string;
-  question?: Question; // Hydrated
+  question?: Question;
 }
 
 export interface ScoreRecord {
@@ -86,7 +107,7 @@ export interface ScoreRecord {
   totalScore: number;
   isFinal: boolean;
   ranking: number;
-  examName?: string; // Hydrated
+  examName?: string;
 }
 
 export interface DashboardStats {

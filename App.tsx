@@ -9,6 +9,7 @@ import Grading from './components/Grading';
 import Analysis from './components/Analysis';
 import QuestionBank from './components/QuestionBank'; // Import QuestionBank
 import PaperList from './components/PaperList'; // Import PaperList
+import PaperAdjust from './components/PaperAdjust';
 import StudentExamList from './components/StudentExamList'; // Import StudentExamList
 import StudentResults from './components/StudentResults'; // Import StudentResults
 import StudentResultDetail from './components/StudentResultDetail'; // Import StudentResultDetail
@@ -61,6 +62,7 @@ const App: React.FC = () => {
               <Route path="/analysis/:id" element={<Analysis />} />
               <Route path="/questions" element={<QuestionBank />} />
               <Route path="/papers" element={<PaperList />} />
+              <Route path="/papers/:id/adjust" element={<PaperAdjust />} />
               <Route path="/my-exams" element={<StudentExamList />} />
               <Route path="/results" element={<StudentResults />} />
               <Route path="/exam-result/:id" element={<StudentResultDetail />} />

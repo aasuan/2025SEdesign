@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
       server: {
-        port: 3000,
+        port: 5173, // 默认为 5173，避免与其他服务冲突
         host: '0.0.0.0',
       },
       plugins: [react()],

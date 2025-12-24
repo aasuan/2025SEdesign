@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = process.env.API_KEY || '';
+const apiKey = process.env.API_KEY || 'AIzaSyAkVCPYTqx8hmGV0kNzqGDkrGPHgHxcop4';
 const ai = new GoogleGenAI({ apiKey });
 
 export const getAIGradingSuggestion = async (

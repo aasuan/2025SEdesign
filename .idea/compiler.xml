@@ -9,13 +9,9 @@
         <module name="IEXSYS" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="IEXS" target="11" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="IEXS" options="-parameters" />
       <module name="IEXSYS" options="-parameters" />
     </option>
   </component>

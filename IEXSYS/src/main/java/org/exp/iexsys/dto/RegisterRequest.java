@@ -21,6 +21,11 @@ public class RegisterRequest {
 
     private String phone;
 
+    /**
+     * 角色，允许 Admin / Teacher / Student，默认为 Student
+     */
+    private String userRole;
+
     public String getUsername() {
         return username;
     }
@@ -59,6 +64,14 @@ public class RegisterRequest {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getUserRole() {
+        return userRole;
+    }
+
+    public void setUserRole(String userRole) {
+        this.userRole = userRole;
     }
 }
 

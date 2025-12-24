@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { Exam, StudentAnswer, ScoreRecord, QuestionType } from '../types';
+import { Exam, StudentAnswer, ScoreRecord } from '../types';
 import { CheckCircle, XCircle, ArrowLeft, AlertCircle, HelpCircle, Clock, CheckSquare } from 'lucide-react';
 
 const StudentResultDetail: React.FC = () => {
@@ -73,9 +73,9 @@ const StudentResultDetail: React.FC = () => {
           
           // Identify objective questions
           const isObjective = 
-            q.questionType === QuestionType.SingleChoice || 
-            q.questionType === QuestionType.TrueFalse ||
-            q.questionType === QuestionType.MultiChoice;
+            q.questionType === 'single' || 
+            q.questionType === 'judge' ||
+            q.questionType === 'multiple';
 
           // Determine Status
           let status: 'correct' | 'wrong' | 'pending' | 'partial' = 'wrong';
@@ -158,15 +158,12 @@ const StudentResultDetail: React.FC = () => {
                 {/* Options (for objective types with options defined) */}
                 {isObjective && q.options && (
                   <div className="space-y-2 mb-6 ml-11">
-                    {q.options.map((opt, i) => {
-                      const response = normalize(userAnswer?.studentResponse);
-                      const answer = normalize(q.answer);
-                      const optText = normalize(opt);
-                      
-                      // Loose comparison for visual highlight
-                      const isSelected = response === optText || normalizeSet(response).includes(normalizeStrict(optText));
-                      const isActualCorrect = answer === optText || normalizeSet(answer).includes(normalizeStrict(optText));
-                      
+                    {Object.entries(q.options).map(([key, text], i) => {
+                      const responseKeys = normalizeSet(userAnswer?.studentResponse).split(','); // already lowercased
+                      const answerKeys = normalizeSet(q.answer).split(',');
+                      const isSelected = responseKeys.includes(key.toLowerCase()) || normalize(userAnswer?.studentResponse) === key;
+                      const isActualCorrect = answerKeys.includes(key.toLowerCase()) || normalize(q.answer) === key;
+
                       let rowClass = "border-gray-200 hover:bg-gray-50";
                       if (isSelected && isActualCorrect) rowClass = "bg-green-50 border-green-200 text-green-700";
                       else if (isSelected && !isActualCorrect) rowClass = "bg-red-50 border-red-200 text-red-700";
@@ -174,7 +171,7 @@ const StudentResultDetail: React.FC = () => {
 
                       return (
                         <div key={i} className={`p-3 rounded-lg border ${rowClass} flex items-center justify-between`}>
-                          <span>{String.fromCharCode(65 + i)}. {opt}</span>
+                          <span>{key}. {text}</span>
                           {isActualCorrect && <CheckCircle size={16} />}
                           {isSelected && !isActualCorrect && <XCircle size={16} />}
                         </div>
