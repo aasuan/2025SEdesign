@@ -3,6 +3,7 @@ package org.exp.iexsys.service.impl;
 import org.exp.iexsys.domain.Question;
 import org.exp.iexsys.dto.QuestionCreateRequest;
 import org.exp.iexsys.dto.QuestionUpdateRequest;
+import org.exp.iexsys.dto.QuestionTagView;
 import org.exp.iexsys.mapper.QuestionMapper;
 import org.exp.iexsys.mapper.QuestionTagMapper;
 import org.exp.iexsys.service.QuestionService;
@@ -11,7 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -37,7 +42,9 @@ public class QuestionServiceImpl implements QuestionService {
         q.setDefaultScore(defaultScore(request.getDefaultScore()));
         questionMapper.insert(q);
         bindTags(q.getQuestionId(), request.getTagIds());
-        return questionMapper.selectById(q.getQuestionId());
+        Question created = questionMapper.selectById(q.getQuestionId());
+        attachTags(Collections.singletonList(created));
+        return created;
     }
 
     @Override
@@ -54,7 +61,9 @@ public class QuestionServiceImpl implements QuestionService {
         existing.setDefaultScore(defaultScore(request.getDefaultScore()));
         questionMapper.update(existing);
         bindTags(existing.getQuestionId(), request.getTagIds());
-        return questionMapper.selectById(existing.getQuestionId());
+        Question updated = questionMapper.selectById(existing.getQuestionId());
+        attachTags(Collections.singletonList(updated));
+        return updated;
     }
 
     @Override
@@ -64,20 +73,26 @@ public class QuestionServiceImpl implements QuestionService {
     }
 
     @Override
-    public List<Question> list(String type, String difficulty, String keyword, int page, int size) {
+    public List<Question> list(String type, String difficulty, String keyword, List<Integer> tagIds, int page, int size) {
         int offset = Math.max(page, 1) - 1;
         offset = offset * Math.max(size, 1);
-        return questionMapper.list(type, difficulty, keyword, offset, size);
+        List<Question> questions = questionMapper.list(type, difficulty, keyword, tagIds, offset, size);
+        attachTags(questions);
+        return questions;
     }
 
     @Override
-    public int count(String type, String difficulty, String keyword) {
-        return questionMapper.count(type, difficulty, keyword);
+    public int count(String type, String difficulty, String keyword, List<Integer> tagIds) {
+        return questionMapper.count(type, difficulty, keyword, tagIds);
     }
 
     @Override
     public Question findById(Long questionId) {
-        return questionMapper.selectById(questionId);
+        Question question = questionMapper.selectById(questionId);
+        if (question != null) {
+            attachTags(Collections.singletonList(question));
+        }
+        return question;
     }
 
     private BigDecimal defaultScore(BigDecimal input) {
@@ -89,5 +104,47 @@ public class QuestionServiceImpl implements QuestionService {
         if (!CollectionUtils.isEmpty(tagIds)) {
             questionTagMapper.insertBatch(questionId, tagIds);
         }
+    }
+
+    private void attachTags(List<Question> questions) {
+        if (CollectionUtils.isEmpty(questions)) {
+            return;
+        }
+        List<Long> ids = questions.stream()
+                .map(Question::getQuestionId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        if (CollectionUtils.isEmpty(ids)) {
+            return;
+        }
+        List<QuestionTagView> relations = questionTagMapper.selectByQuestionIds(ids);
+        if (CollectionUtils.isEmpty(relations)) {
+            questions.forEach(q -> {
+                q.setTagIds(Collections.emptyList());
+                q.setTagNames(Collections.emptyList());
+            });
+            return;
+        }
+        Map<Long, List<QuestionTagView>> grouped = relations.stream()
+                .filter(rel -> rel.getQuestionId() != null)
+                .collect(Collectors.groupingBy(QuestionTagView::getQuestionId));
+        questions.forEach(q -> {
+            List<QuestionTagView> rels = grouped.get(q.getQuestionId());
+            if (CollectionUtils.isEmpty(rels)) {
+                q.setTagIds(Collections.emptyList());
+                q.setTagNames(Collections.emptyList());
+                return;
+            }
+            q.setTagIds(rels.stream()
+                    .map(QuestionTagView::getTagId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .collect(Collectors.toList()));
+            q.setTagNames(rels.stream()
+                    .map(QuestionTagView::getTagName)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .collect(Collectors.toList()));
+        });
     }
 }

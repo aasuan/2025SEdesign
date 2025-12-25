@@ -61,6 +61,32 @@ class ApiService {
   }
 
   private normalizeQuestion(raw: any): Question {
+    const toNumberArray = (val: any): number[] => {
+      if (Array.isArray(val)) {
+        return val.map((v) => Number(v)).filter((v) => !Number.isNaN(v));
+      }
+      if (typeof val === 'string') {
+        return val
+          .split(/[;,]/)
+          .map((v) => Number(v.trim()))
+          .filter((v) => !Number.isNaN(v));
+      }
+      return [];
+    };
+
+    const toStringArray = (val: any): string[] => {
+      if (Array.isArray(val)) {
+        return val.map((v) => String(v)).filter((v) => v.trim().length > 0);
+      }
+      if (typeof val === 'string') {
+        return val
+          .split(/[;,]/)
+          .map((v) => v.trim())
+          .filter((v) => v.length > 0);
+      }
+      return [];
+    };
+
     return {
       questionId: Number(raw.questionId),
       creatorId: Number(raw.creatorId),
@@ -71,8 +97,8 @@ class ApiService {
       answer: raw.answer,
       defaultScore: Number(raw.defaultScore ?? 0),
       active: raw.active ?? raw.isActive,
-      tagIds: raw.tagIds,
-      tagNames: raw.tagNames,
+      tagIds: toNumberArray(raw.tagIds),
+      tagNames: toStringArray(raw.tagNames),
     };
   }
 
@@ -171,6 +197,7 @@ class ApiService {
     keyword?: string;
     type?: QuestionType;
     difficulty?: Difficulty;
+    tagIds?: number[];
     page?: number;
     size?: number;
   }): Promise<Question[]> {
@@ -178,6 +205,7 @@ class ApiService {
     if (params?.keyword) search.set('keyword', params.keyword);
     if (params?.type) search.set('type', params.type);
     if (params?.difficulty) search.set('difficulty', params.difficulty);
+    if (params?.tagIds && params.tagIds.length) search.set('tagIds', params.tagIds.join(','));
     search.set('page', String(params?.page || 1));
     search.set('size', String(params?.size || 50));
 

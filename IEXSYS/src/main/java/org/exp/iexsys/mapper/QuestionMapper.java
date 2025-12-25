@@ -20,12 +20,14 @@ public interface QuestionMapper {
     List<Question> list(@Param("type") String type,
                         @Param("difficulty") String difficulty,
                         @Param("keyword") String keyword,
+                        @Param("tagIds") List<Integer> tagIds,
                         @Param("offset") int offset,
                         @Param("limit") int limit);
 
     int count(@Param("type") String type,
               @Param("difficulty") String difficulty,
-              @Param("keyword") String keyword);
+              @Param("keyword") String keyword,
+              @Param("tagIds") List<Integer> tagIds);
 
     List<Question> randomPickByType(@Param("type") String type, @Param("limit") int limit);
 }

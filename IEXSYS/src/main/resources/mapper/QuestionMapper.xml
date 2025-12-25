@@ -63,6 +63,15 @@
             <if test="keyword != null and keyword != ''">
                 AND content LIKE CONCAT('%', #{keyword}, '%')
             </if>
+            <if test="tagIds != null and tagIds.size() > 0">
+                AND question_id IN (
+                    SELECT DISTINCT question_id FROM question_tag
+                    WHERE tag_id IN
+                    <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
+                        #{tagId}
+                    </foreach>
+                )
+            </if>
         </where>
         ORDER BY question_id DESC
         LIMIT #{limit} OFFSET #{offset}
@@ -80,6 +89,15 @@
             </if>
             <if test="keyword != null and keyword != ''">
                 AND content LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+            <if test="tagIds != null and tagIds.size() > 0">
+                AND question_id IN (
+                    SELECT DISTINCT question_id FROM question_tag
+                    WHERE tag_id IN
+                    <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
+                        #{tagId}
+                    </foreach>
+                )
             </if>
         </where>
     </select>

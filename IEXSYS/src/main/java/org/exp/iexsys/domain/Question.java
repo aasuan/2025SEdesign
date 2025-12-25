@@ -24,6 +24,8 @@ public class Question implements Serializable {
     private String extraInfo;
     /** 标签ID集合，便于返回展示 */
     private List<Integer> tagIds;
+    /** 标签名称集合，便于前端直接展示 */
+    private List<String> tagNames;
 
     public Long getQuestionId() {
         return questionId;
@@ -127,5 +129,13 @@ public class Question implements Serializable {
 
     public void setTagIds(List<Integer> tagIds) {
         this.tagIds = tagIds;
+    }
+
+    public List<String> getTagNames() {
+        return tagNames;
+    }
+
+    public void setTagNames(List<String> tagNames) {
+        this.tagNames = tagNames;
     }
 }

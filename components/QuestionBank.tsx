@@ -23,6 +23,8 @@ const QuestionBank: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [filterTagIds, setFilterTagIds] = useState<number[]>([]);
+  const [tagFilterOpen, setTagFilterOpen] = useState(false);
 
   // Form State
   const [qType, setQType] = useState<QuestionType>('single');
@@ -49,14 +51,14 @@ const QuestionBank: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => fetchQuestions(searchQuery), 300);
+    const timer = setTimeout(() => fetchQuestions({ keyword: searchQuery, tagIds: filterTagIds }), 300);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, filterTagIds]);
 
-  const fetchQuestions = async (keyword?: string) => {
+  const fetchQuestions = async (params?: { keyword?: string; tagIds?: number[] }) => {
     try {
       setLoading(true);
-      const data = await api.getQuestions({ keyword, size: 200 });
+      const data = await api.getQuestions({ keyword: params?.keyword, tagIds: params?.tagIds, size: 200 });
       setQuestions(data);
     } catch (err: any) {
       setError(err?.message || '拉取题库失败');
@@ -110,7 +112,7 @@ const QuestionBank: React.FC = () => {
       try {
         await api.deleteQuestion(questionId);
         setQuestions(prev => prev.filter(q => q.questionId !== questionId));
-        setTimeout(() => fetchQuestions(searchQuery), 80);
+        setTimeout(() => fetchQuestions({ keyword: searchQuery, tagIds: filterTagIds }), 80);
       } catch (err: any) {
         alert(err?.message || '删除失败');
       }
@@ -130,10 +132,19 @@ const QuestionBank: React.FC = () => {
     });
   };
 
+  const toggleFilterTag = (id: number) => {
+    setFilterTagIds(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
+  };
+
+  const clearFilterTags = () => setFilterTagIds([]);
+
   const tagsForQuestion = (q: Question) => {
-    if (q.tagNames && q.tagNames.length) return q.tagNames;
-    if (q.tagIds && availableTags.length) {
-      return q.tagIds
+    const tagNames = Array.isArray(q.tagNames) ? q.tagNames : [];
+    if (tagNames.length) return tagNames;
+
+    const ids = Array.isArray(q.tagIds) ? q.tagIds : [];
+    if (ids.length && availableTags.length) {
+      return ids
         .map(id => availableTags.find(t => t.tagId === id)?.tagName)
         .filter(Boolean) as string[];
     }
@@ -183,7 +194,7 @@ const QuestionBank: React.FC = () => {
       }
       setIsModalOpen(false);
       resetForm();
-      fetchQuestions(searchQuery);
+      fetchQuestions({ keyword: searchQuery, tagIds: filterTagIds });
     } catch (err: any) {
       alert(err?.message || '保存失败');
     } finally {
@@ -227,11 +238,11 @@ const QuestionBank: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <TagIcon className="text-primary" /> 题库管理
         </h1>
-        <div className="flex gap-3 w-full md:w-auto">
+        <div className="flex gap-3 w-full md:w-auto items-center flex-wrap md:flex-nowrap">
           <div className="relative flex-1 md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
@@ -242,6 +253,42 @@ const QuestionBank: React.FC = () => {
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-400 outline-none transition-all"
             />
           </div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setTagFilterOpen((prev) => !prev)}
+              className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-gray-700 bg-white hover:border-blue-300 transition-colors"
+            >
+              <ChevronDown className={`transition-transform ${tagFilterOpen ? 'rotate-180' : ''}`} size={16} />
+              标签筛选
+              {filterTagIds.length > 0 && (
+                <span className="ml-1 px-2 py-0.5 text-xs bg-blue-50 text-blue-700 rounded-full">{filterTagIds.length}</span>
+              )}
+            </button>
+            {tagFilterOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-20">
+                <div className="max-h-64 overflow-y-auto p-3 space-y-2">
+                  {availableTags.length === 0 && <div className="text-xs text-gray-400">暂无标签，可在右侧创建</div>}
+                  {availableTags.map(tag => (
+                    <label key={tag.tagId} className="flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={filterTagIds.includes(tag.tagId)}
+                        onChange={() => toggleFilterTag(tag.tagId)}
+                        className="accent-primary"
+                      />
+                      <span className="flex-1">{tag.tagName}</span>
+                      <span className="text-xs text-gray-400">{tag.tagType}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between border-t border-gray-100 px-3 py-2 text-xs">
+                  <button type="button" onClick={clearFilterTags} className="text-gray-500 hover:text-gray-700">清除</button>
+                  <button type="button" onClick={() => setTagFilterOpen(false)} className="text-blue-600 hover:text-blue-700">完成</button>
+                </div>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => { resetForm(); setIsModalOpen(true); }}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 shadow-sm transition-colors"
@@ -250,6 +297,23 @@ const QuestionBank: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {filterTagIds.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+          {filterTagIds.map(id => {
+            const tag = availableTags.find(t => t.tagId === id);
+            return (
+              <span key={id} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded">
+                {tag?.tagName || `#${id}`}
+                <button type="button" onClick={() => toggleFilterTag(id)} className="text-blue-500 hover:text-blue-700">
+                  <X size={14} />
+                </button>
+              </span>
+            );
+          })}
+          <button type="button" onClick={clearFilterTags} className="text-xs text-gray-500 hover:text-gray-700">清除标签筛选</button>
+        </div>
+      )}
 
       {error && <div className="text-red-500 text-sm">{error}</div>}
 

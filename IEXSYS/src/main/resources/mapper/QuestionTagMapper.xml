@@ -14,4 +14,22 @@
             (#{questionId}, #{tagId})
         </foreach>
     </insert>
+
+    <select id="selectByQuestionIds" resultType="org.exp.iexsys.dto.QuestionTagView">
+        SELECT qt.question_id AS questionId, qt.tag_id AS tagId, t.tag_name AS tagName
+        FROM question_tag qt
+        LEFT JOIN tag t ON qt.tag_id = t.tag_id
+        <where>
+            <if test="questionIds != null and questionIds.size() > 0">
+                qt.question_id IN
+                <foreach collection="questionIds" item="id" open="(" separator="," close=")">
+                    #{id}
+                </foreach>
+            </if>
+            <if test="questionIds == null or questionIds.size() == 0">
+                1 = 0
+            </if>
+        </where>
+        ORDER BY qt.question_id, qt.tag_id
+    </select>
 </mapper>

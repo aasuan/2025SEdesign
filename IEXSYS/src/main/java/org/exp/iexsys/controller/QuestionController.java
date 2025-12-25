@@ -26,10 +26,11 @@ public class QuestionController {
     public ApiResponse<Map<String, Object>> list(@RequestParam(value = "type", required = false) String type,
                                                  @RequestParam(value = "difficulty", required = false) String difficulty,
                                                  @RequestParam(value = "keyword", required = false) String keyword,
+                                                 @RequestParam(value = "tagIds", required = false) List<Integer> tagIds,
                                                  @RequestParam(value = "page", defaultValue = "1") int page,
                                                  @RequestParam(value = "size", defaultValue = "10") int size) {
-        List<Question> list = questionService.list(type, difficulty, keyword, page, size);
-        int total = questionService.count(type, difficulty, keyword);
+        List<Question> list = questionService.list(type, difficulty, keyword, tagIds, page, size);
+        int total = questionService.count(type, difficulty, keyword, tagIds);
         Map<String, Object> payload = new HashMap<>();
         payload.put("list", list);
         payload.put("total", total);

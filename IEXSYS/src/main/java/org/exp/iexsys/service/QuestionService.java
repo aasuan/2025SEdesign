@@ -14,9 +14,9 @@ public interface QuestionService {
 
     void deleteQuestion(Long questionId);
 
-    List<Question> list(String type, String difficulty, String keyword, int page, int size);
+    List<Question> list(String type, String difficulty, String keyword, List<Integer> tagIds, int page, int size);
 
-    int count(String type, String difficulty, String keyword);
+    int count(String type, String difficulty, String keyword, List<Integer> tagIds);
 
     Question findById(Long questionId);
 }

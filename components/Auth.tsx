@@ -56,7 +56,6 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
         <div className="bg-primary p-8 text-center">
           <h1 className="text-3xl font-bold text-white mb-2">智能在线考核系统</h1>
-          <p className="text-blue-100">前后端联调演示</p>
         </div>
 
         <div className="p-8">
@@ -181,9 +180,6 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             </button>
           </form>
 
-          <div className="mt-6 text-center text-xs text-gray-400">
-            后端接口：登录 / 注册 / 获取用户信息 / 退出登录 已接入
-          </div>
         </div>
       </div>
     </div>
