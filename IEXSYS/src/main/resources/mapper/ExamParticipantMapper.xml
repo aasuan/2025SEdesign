@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.exp.iexsys.mapper.ExamParticipantMapper">
+
+    <resultMap id="ExamParticipantResultMap" type="org.exp.iexsys.domain.ExamParticipant">
+        <id property="epId" column="ep_id"/>
+        <result property="examId" column="exam_id"/>
+        <result property="studentId" column="student_id"/>
+        <result property="joinStatus" column="join_status"/>
+        <result property="joinTime" column="join_time"/>
+        <result property="submitTime" column="submit_time"/>
+    </resultMap>
+
+    <insert id="insertBatch">
+        INSERT INTO exam_participant (exam_id, student_id, join_status)
+        VALUES
+        <foreach collection="studentIds" item="sid" separator=",">
+            (#{examId}, #{sid}, 'Invited')
+        </foreach>
+        ON DUPLICATE KEY UPDATE join_status = VALUES(join_status)
+    </insert>
+
+    <select id="listByExamId" parameterType="long" resultMap="ExamParticipantResultMap">
+        SELECT ep_id, exam_id, student_id, join_status, join_time, submit_time
+        FROM exam_participant
+        WHERE exam_id = #{examId}
+        ORDER BY ep_id ASC
+    </select>
+
+    <select id="listByStudentId" parameterType="long" resultMap="ExamParticipantResultMap">
+        SELECT ep_id, exam_id, student_id, join_status, join_time, submit_time
+        FROM exam_participant
+        WHERE student_id = #{studentId}
+        ORDER BY ep_id DESC
+    </select>
+
+    <select id="selectOne" resultMap="ExamParticipantResultMap">
+        SELECT ep_id, exam_id, student_id, join_status, join_time, submit_time
+        FROM exam_participant
+        WHERE exam_id = #{examId} AND student_id = #{studentId}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE exam_participant
+        SET join_status = #{joinStatus}
+        WHERE exam_id = #{examId} AND student_id = #{studentId}
+    </update>
+
+    <update id="touchHeartbeat">
+        UPDATE exam_participant
+        SET join_time = NOW()
+        WHERE exam_id = #{examId} AND student_id = #{studentId}
+    </update>
+
+    <update id="markSubmitted">
+        UPDATE exam_participant
+        SET join_status = 'Submitted',
+            submit_time = NOW()
+        WHERE exam_id = #{examId} AND student_id = #{studentId}
+    </update>
+</mapper>

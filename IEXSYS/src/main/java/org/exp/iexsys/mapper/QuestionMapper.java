@@ -30,4 +30,6 @@ public interface QuestionMapper {
               @Param("tagIds") List<Integer> tagIds);
 
     List<Question> randomPickByType(@Param("type") String type, @Param("limit") int limit);
+
+    List<Question> selectByIds(@Param("ids") List<Long> ids);
 }

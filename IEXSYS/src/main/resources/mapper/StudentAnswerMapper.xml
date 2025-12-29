@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.exp.iexsys.mapper.StudentAnswerMapper">
+
+    <resultMap id="StudentAnswerResultMap" type="org.exp.iexsys.domain.StudentAnswer">
+        <id property="answerId" column="answer_id"/>
+        <result property="examId" column="exam_id"/>
+        <result property="studentId" column="student_id"/>
+        <result property="questionId" column="question_id"/>
+        <result property="studentResponse" column="student_response"/>
+        <result property="graded" column="is_graded"/>
+        <result property="obtainedScore" column="obtained_score"/>
+        <result property="graderId" column="grader_id"/>
+        <result property="gradeTime" column="grade_time"/>
+        <result property="saveTime" column="save_time"/>
+        <result property="extraInfo" column="extra_info"/>
+    </resultMap>
+
+    <insert id="upsert" parameterType="org.exp.iexsys.domain.StudentAnswer">
+        INSERT INTO student_answer (exam_id, student_id, question_id, student_response, is_graded, obtained_score, grader_id, grade_time, save_time, extra_info)
+        VALUES (#{examId}, #{studentId}, #{questionId}, #{studentResponse}, #{graded}, #{obtainedScore}, #{graderId}, #{gradeTime}, #{saveTime}, #{extraInfo})
+        ON DUPLICATE KEY UPDATE
+            student_response = VALUES(student_response),
+            save_time = VALUES(save_time),
+            is_graded = VALUES(is_graded),
+            obtained_score = VALUES(obtained_score),
+            grader_id = VALUES(grader_id),
+            grade_time = VALUES(grade_time),
+            extra_info = VALUES(extra_info)
+    </insert>
+
+    <select id="listByExamAndStudent" resultMap="StudentAnswerResultMap">
+        SELECT answer_id, exam_id, student_id, question_id, student_response, is_graded, obtained_score, grader_id, grade_time, save_time, extra_info
+        FROM student_answer
+        WHERE exam_id = #{examId} AND student_id = #{studentId}
+    </select>
+
+    <select id="selectOne" resultMap="StudentAnswerResultMap">
+        SELECT answer_id, exam_id, student_id, question_id, student_response, is_graded, obtained_score, grader_id, grade_time, save_time, extra_info
+        FROM student_answer
+        WHERE exam_id = #{examId} AND student_id = #{studentId} AND question_id = #{questionId}
+    </select>
+</mapper>
