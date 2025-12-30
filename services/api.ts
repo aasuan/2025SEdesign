@@ -21,7 +21,7 @@ class ApiService {
   private questionsCache: Question[] = [];
   private papersCache: Paper[] = [];
 
-  // Mock-only stores (exam module not covered by backend)
+  // Legacy mock stores (used only as fallbacks for non-implemented modules)
   private exams = [...MOCK_EXAMS];
   private answers = [...MOCK_ANSWERS];
   private scores = [...MOCK_SCORES];
@@ -132,6 +132,20 @@ class ApiService {
       throw new Error('请先登录再进行操作');
     }
     return this.currentUser.id;
+  }
+
+  private normalizeExam(raw: any): Exam {
+    return {
+      examId: Number(raw.examId ?? raw.id),
+      paperId: Number(raw.paperId),
+      examName: raw.examName ?? raw.name,
+      startTime: raw.startTime ?? raw.start_time,
+      endTime: raw.endTime ?? raw.end_time,
+      durationMinutes: Number(raw.durationMinutes ?? raw.duration_minutes ?? 0),
+      proctorId: Number(raw.proctorId ?? 0),
+      status: (raw.status ?? 'Pending') as Exam['status'],
+      paper: this.papersCache.find((p) => p.paperId === Number(raw.paperId)),
+    };
   }
 
   /* ---------------------- Auth ---------------------- */
@@ -329,16 +343,31 @@ class ApiService {
     return paper;
   }
 
-  /* ---------------------- Mock-based exam module (unchanged) ---------------------- */
-  async getExams(status?: string) {
-    let result = this.exams;
-    if (status) {
-      result = result.filter((e) => e.status === status);
+  /* ---------------------- Exams (backend) ---------------------- */
+  async getExams(status?: string): Promise<Exam[]> {
+    const search = status ? `?status=${encodeURIComponent(status)}` : '';
+    try {
+      const data = await this.request<Exam[]>(`/api/exams${search}`);
+      // Ensure papers are cached for display
+      if (this.papersCache.length === 0) {
+        try {
+          await this.listPapers();
+        } catch {
+          /* ignore cache warm failure */
+        }
+      }
+      return data.map((e) => this.normalizeExam(e));
+    } catch {
+      // fallback to mock
+      let result = this.exams;
+      if (status) {
+        result = result.filter((e) => e.status === status);
+      }
+      return result.map((e) => ({
+        ...e,
+        paper: this.papersCache.find((p) => p.paperId === e.paperId) || MOCK_PAPERS.find((p) => p.paperId === e.paperId),
+      }));
     }
-    return result.map((e) => ({
-      ...e,
-      paper: this.papersCache.find((p) => p.paperId === e.paperId) || MOCK_PAPERS.find((p) => p.paperId === e.paperId),
-    }));
   }
 
   async getPapers(): Promise<Paper[]> {
@@ -352,23 +381,92 @@ class ApiService {
     return this.papersCache;
   }
 
-  async createExam(exam: any) {
-    const newExam = { ...exam, examId: Date.now() };
-    this.exams.push(newExam);
-    return newExam;
+  async createExam(exam: Partial<Exam>) {
+    const payload = { ...exam };
+    const data = await this.request<Exam>('/api/exams', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    const normalized = this.normalizeExam(data);
+    return normalized;
   }
 
-  async updateExam(exam: any) {
-    const index = this.exams.findIndex((e) => e.examId === exam.examId);
-    if (index !== -1) {
-      this.exams[index] = { ...exam };
-      return this.exams[index];
-    }
-    throw new Error('Exam not found');
+  async updateExam(exam: Partial<Exam> & { examId: number }) {
+    const payload = { ...exam };
+    const data = await this.request<Exam>(`/api/exams/${exam.examId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    return this.normalizeExam(data);
   }
 
   async deleteExam(examId: number) {
-    this.exams = this.exams.filter((e) => e.examId !== Number(examId));
+    // backend无删除接口，用取消替代
+    await this.request<Exam>(`/api/exams/${examId}/cancel`, { method: 'POST' });
+  }
+
+  async setExamParticipants(examId: number, studentIds: number[]) {
+    return this.request<void>(`/api/exams/${examId}/participants`, {
+      method: 'POST',
+      body: JSON.stringify({ studentIds }),
+    });
+  }
+
+  async getPortalExams(): Promise<Exam[]> {
+    const data = await this.request<Array<{ exam: any; participant: any }>>('/api/portal/exams');
+    if (!Array.isArray(data)) return [];
+    // attach exam only (participant used server-side for status)
+    return data.map((row) => this.normalizeExam(row.exam || row));
+  }
+
+  async enterPortalExam(examId: number) {
+    const data = await this.request<{ exam: any; participant: any }>(`/api/portal/exams/${examId}/enter`, {
+      method: 'POST',
+    });
+    return {
+      exam: this.normalizeExam(data.exam),
+      participant: data.participant,
+    };
+  }
+
+  async getPortalQuestions(examId: number) {
+    const data = await this.request<any[]>(`/api/portal/exams/${examId}/questions`);
+    return data || [];
+  }
+
+  async savePortalAnswer(examId: number, payload: { questionId: number; studentResponse: string }) {
+    return this.request(`/api/portal/exams/${examId}/answers`, {
+      method: 'POST',
+      body: JSON.stringify({ ...payload, saveTime: new Date().toISOString() }),
+    });
+  }
+
+  async submitPortalExam(examId: number) {
+    return this.request(`/api/portal/exams/${examId}/submit`, { method: 'POST' });
+  }
+
+  async getMyExams(): Promise<Exam[]> {
+    return this.getPortalExams();
+  }
+
+  async getExamDetails(examId: number): Promise<Exam | undefined> {
+    try {
+      const data = await this.request<Exam>(`/api/exams/${examId}`);
+      const exam = this.normalizeExam(data);
+      if (!exam.paper && exam.paperId) {
+        try {
+          exam.paper = await this.getPaperDetail(exam.paperId);
+        } catch {
+          /* ignore paper fetch failure */
+        }
+      }
+      return exam;
+    } catch {
+      const exam = this.exams.find((e) => e.examId === examId);
+      if (!exam) return undefined;
+      const paper = this.papersCache.find((p) => p.paperId === exam.paperId);
+      return { ...exam, paper };
+    }
   }
 
   async getUngradedAnswers(): Promise<StudentAnswer[]> {
@@ -386,17 +484,6 @@ class ApiService {
         record.totalScore = allExamAnswers.reduce((sum, a) => sum + (a.obtainedScore || 0), 0);
       }
     }
-  }
-
-  async getMyExams() {
-    return this.exams.filter((e) => e.status === 'Active');
-  }
-
-  async getExamDetails(examId: number) {
-    const exam = this.exams.find((e) => e.examId === examId);
-    if (!exam) return undefined;
-    const paper = this.papersCache.find((p) => p.paperId === exam.paperId);
-    return { ...exam, paper };
   }
 
   async submitExamAnswers(examId: number, answers: { questionId: number; response: string }[]): Promise<void> {

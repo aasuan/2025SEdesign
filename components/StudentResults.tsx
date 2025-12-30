@@ -37,7 +37,7 @@ const StudentResults: React.FC = () => {
       try {
         const [scores, exams] = await Promise.all([
           api.getMyScores(),
-          api.getExams()
+          api.getPortalExams()
         ]);
 
         const enhancedRecords = scores.map(score => {

@@ -90,6 +90,9 @@ public class PortalExamServiceImpl implements PortalExamService {
     public Map<String, Object> enter(Long examId, Long studentId) {
         Exam exam = mustFindExam(examId);
         ExamParticipant participant = ensureParticipant(examId, studentId);
+        if ("Submitted".equalsIgnoreCase(participant.getJoinStatus())) {
+            throw new IllegalArgumentException("Exam already submitted");
+        }
         if ("Canceled".equalsIgnoreCase(exam.getStatus())) {
             throw new IllegalArgumentException("Exam has been canceled");
         }
@@ -188,7 +191,10 @@ public class PortalExamServiceImpl implements PortalExamService {
     @Override
     public void submit(Long examId, Long studentId) {
         Exam exam = mustFindExam(examId);
-        ensureParticipant(examId, studentId);
+        ExamParticipant participant = ensureParticipant(examId, studentId);
+        if ("Submitted".equalsIgnoreCase(participant.getJoinStatus())) {
+            throw new IllegalArgumentException("Exam already submitted");
+        }
         if ("Canceled".equalsIgnoreCase(exam.getStatus())) {
             throw new IllegalArgumentException("Exam has been canceled");
         }

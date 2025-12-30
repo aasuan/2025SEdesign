@@ -2,3 +2,5 @@
 [2025-12-29 14:16:57] Added domain, DTOs, mappers, and services for Exam, ExamParticipant, StudentAnswer with MyBatis XML bindings.
 [2025-12-29 14:16:57] Persisted participant roster management, exam lifecycle (publish/cancel), question retrieval, answer upsert, and submit flow.
 [2025-12-29 14:16:57] Endpoints follow docs/openapi.json; front-end can call the new routes directly via the existing /api prefix.
+[2025-12-30 21:43:53] Front-end exam module now calls backend /api/exams and /api/portal/exams (no mocks), fixes timezone shift by sending local datetime strings, supports participant assignment, and surfaces invited exams on the student dashboard and list.
+[2025-12-30 22:14:50] Connected student exam room to backend portal APIs: enter exam with submit guard, fetch questions from /api/portal/exams/{id}/questions, save answers to /answers, submit via /submit; fixed frontend exam paper rendering and prefill; backend blocks re-entry after submission.
