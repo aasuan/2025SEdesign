@@ -7,6 +7,8 @@
         <id property="epId" column="ep_id"/>
         <result property="examId" column="exam_id"/>
         <result property="studentId" column="student_id"/>
+        <result property="username" column="username"/>
+        <result property="realName" column="real_name"/>
         <result property="joinStatus" column="join_status"/>
         <result property="joinTime" column="join_time"/>
         <result property="submitTime" column="submit_time"/>
@@ -22,23 +24,29 @@
     </insert>
 
     <select id="listByExamId" parameterType="long" resultMap="ExamParticipantResultMap">
-        SELECT ep_id, exam_id, student_id, join_status, join_time, submit_time
-        FROM exam_participant
-        WHERE exam_id = #{examId}
-        ORDER BY ep_id ASC
+        SELECT ep.ep_id, ep.exam_id, ep.student_id, ep.join_status, ep.join_time, ep.submit_time,
+               u.username, u.real_name
+        FROM exam_participant ep
+                 LEFT JOIN user u ON ep.student_id = u.user_id
+        WHERE ep.exam_id = #{examId}
+        ORDER BY ep.ep_id ASC
     </select>
 
     <select id="listByStudentId" parameterType="long" resultMap="ExamParticipantResultMap">
-        SELECT ep_id, exam_id, student_id, join_status, join_time, submit_time
-        FROM exam_participant
-        WHERE student_id = #{studentId}
-        ORDER BY ep_id DESC
+        SELECT ep.ep_id, ep.exam_id, ep.student_id, ep.join_status, ep.join_time, ep.submit_time,
+               u.username, u.real_name
+        FROM exam_participant ep
+                 LEFT JOIN user u ON ep.student_id = u.user_id
+        WHERE ep.student_id = #{studentId}
+        ORDER BY ep.ep_id DESC
     </select>
 
     <select id="selectOne" resultMap="ExamParticipantResultMap">
-        SELECT ep_id, exam_id, student_id, join_status, join_time, submit_time
-        FROM exam_participant
-        WHERE exam_id = #{examId} AND student_id = #{studentId}
+        SELECT ep.ep_id, ep.exam_id, ep.student_id, ep.join_status, ep.join_time, ep.submit_time,
+               u.username, u.real_name
+        FROM exam_participant ep
+                 LEFT JOIN user u ON ep.student_id = u.user_id
+        WHERE ep.exam_id = #{examId} AND ep.student_id = #{studentId}
     </select>
 
     <update id="updateStatus">

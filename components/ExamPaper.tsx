@@ -11,6 +11,8 @@ const ExamPaper: React.FC = () => {
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
+  const [showTimeWarning, setShowTimeWarning] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
@@ -51,7 +53,10 @@ const ExamPaper: React.FC = () => {
             items: mapped,
           },
         });
-        setTimeLeft(entered.durationMinutes * 60);
+        const endFromServer = entered.endTime ? Math.floor((new Date(entered.endTime).getTime() - Date.now()) / 1000) : null;
+        const durationLeft = entered.durationMinutes * 60;
+        const effectiveLeft = endFromServer != null ? Math.max(0, Math.min(durationLeft, endFromServer)) : durationLeft;
+        setTimeLeft(effectiveLeft);
       } catch (err: any) {
         alert(err?.message || '无法进入考试');
         navigate('/my-exams');
@@ -91,11 +96,12 @@ const ExamPaper: React.FC = () => {
 
   // timer
   useEffect(() => {
+    if (!exam) return;
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleSubmit();
+          handleSubmit(true);
           return 0;
         }
         return prev - 1;
@@ -103,7 +109,13 @@ const ExamPaper: React.FC = () => {
     }, 1000);
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [exam?.examId]);
+
+  useEffect(() => {
+    if (timeLeft <= 300 && timeLeft > 0) {
+      setShowTimeWarning(true);
+    }
+  }, [timeLeft]);
 
   // camera
   useEffect(() => {
@@ -142,7 +154,7 @@ const ExamPaper: React.FC = () => {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (auto = false) => {
     if (!exam || isSubmitting) return;
     if (!navigator.onLine) {
       alert('网络断开，答案已保存在本地，请联网后再提交。');
@@ -152,7 +164,9 @@ const ExamPaper: React.FC = () => {
     try {
       await api.submitPortalExam(exam.examId);
       if (userId && id) localStorage.removeItem(`exam_progress_${userId}_${id}`);
-      alert('提交成功');
+      if (!auto) {
+        alert('提交成功');
+      }
       navigate('/results');
     } catch (error: any) {
       alert(error?.message || '提交失败，请稍后重试');
@@ -208,6 +222,12 @@ const ExamPaper: React.FC = () => {
         </div>
       </header>
 
+      {showTimeWarning && (
+        <div className="bg-yellow-50 text-yellow-800 px-6 py-3 text-center text-sm font-medium border-b border-yellow-200">
+          考试时间仅剩5分钟，距考试截止时间仅有5分钟，请尽快完成并提交。
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-72 bg-white border-r border-gray-200 flex flex-col">
           <div className="p-4 border-b border-gray-100">
@@ -247,17 +267,77 @@ const ExamPaper: React.FC = () => {
 
           <div className="p-4 border-t border-gray-100">
             <button
-              onClick={handleSubmit}
+              onClick={() => (previewMode ? handleSubmit() : setPreviewMode(true))}
               disabled={isSubmitting}
               className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
             >
-              <CheckCircle size={18} /> {isSubmitting ? '提交中...' : '提交试卷'}
+              <CheckCircle size={18} /> {previewMode ? (isSubmitting ? '提交中...' : '提交试卷') : '整卷预览'}
             </button>
           </div>
         </aside>
 
         <main className="flex-1 overflow-y-auto p-8 md:p-12">
-          {qData && (
+          {previewMode ? (
+            <div className="max-w-4xl mx-auto">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">整卷预览</h2>
+                  <p className="text-sm text-gray-500">请确认每道题的作答，提交后不可修改。</p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setPreviewMode(false)}
+                    className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    返回答题
+                  </button>
+                  <button
+                    onClick={() => handleSubmit()}
+                    disabled={isSubmitting}
+                    className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-60"
+                  >
+                    {isSubmitting ? '提交中...' : '确认提交'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {exam.paper.questions.map((q, idx) => {
+                  const answered = !!answers[q.questionId];
+                  return (
+                    <div
+                      key={q.questionId}
+                      className="flex items-center justify-between p-4 rounded-lg border border-gray-200 bg-white hover:border-blue-200 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                            answered ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                          }`}
+                        >
+                          {idx + 1}
+                        </span>
+                        <div className="text-sm text-gray-800">
+                          <div className="font-medium text-gray-900 line-clamp-1">{q.question?.content || '题目'}</div>
+                          <div className="text-xs text-gray-500">分值：{q.questionScore}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setCurrentQIndex(idx);
+                          setPreviewMode(false);
+                        }}
+                        className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
+                      >
+                        {answered ? '查看/修改' : '去作答'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            qData && (
             <div className="max-w-3xl mx-auto">
               <div className="mb-6">
                 <span className="inline-block px-3 py-1 bg-gray-200 rounded-full text-xs font-semibold text-gray-700 mb-3">
@@ -337,14 +417,21 @@ const ExamPaper: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => setCurrentQIndex(Math.min(exam.paper!.questions!.length - 1, currentQIndex + 1))}
-                  disabled={currentQIndex === exam.paper!.questions!.length - 1}
+                  onClick={() => {
+                    if (currentQIndex === exam.paper!.questions!.length - 1) {
+                      setPreviewMode(true);
+                    } else {
+                      setCurrentQIndex(Math.min(exam.paper!.questions!.length - 1, currentQIndex + 1));
+                    }
+                  }}
+                  disabled={false}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  下一题
+                  {currentQIndex === exam.paper!.questions!.length - 1 ? '整卷预览' : '下一题'}
                 </button>
               </div>
             </div>
+            )
           )}
         </main>
       </div>

@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../services/api';
 import { getAIGradingSuggestion } from '../services/geminiService';
-import { StudentAnswer } from '../types';
-import { Check, X, Sparkles, MessageSquare } from 'lucide-react';
+import { Exam, StudentAnswer } from '../types';
+import { Check, X, Sparkles, MessageSquare, Filter } from 'lucide-react';
 
 const Grading: React.FC = () => {
   const [submissions, setSubmissions] = useState<StudentAnswer[]>([]);
@@ -10,9 +10,12 @@ const Grading: React.FC = () => {
   const [grade, setGrade] = useState<number>(0);
   const [comment, setComment] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [examList, setExamList] = useState<Exam[]>([]);
+  const [selectedExamId, setSelectedExamId] = useState<number | 'all'>('all');
 
   useEffect(() => {
     loadSubmissions();
+    api.getExams().then(setExamList).catch(() => {});
   }, []);
 
   const loadSubmissions = async () => {
@@ -36,25 +39,69 @@ const Grading: React.FC = () => {
     setAiLoading(false);
   };
 
+  const autoGradeObjective = (submission: StudentAnswer) => {
+    const q = submission.question;
+    if (!q) return null;
+    if (q.questionType === 'short') return null;
+    const max = submission.questionScore ?? q.defaultScore ?? 0;
+    const correct = (q.answer || '').trim();
+    const student = (submission.studentResponse || '').trim();
+    const normalizeMulti = (v: string) =>
+      v
+        .split(/[,;\s]+/)
+        .map((x) => x.trim().toUpperCase())
+        .filter(Boolean)
+        .sort()
+        .join(',');
+    const isCorrect =
+      q.questionType === 'multiple' ? normalizeMulti(student) === normalizeMulti(correct) : student.toUpperCase() === correct.toUpperCase();
+    return {
+      score: isCorrect ? max : 0,
+      comment: isCorrect ? '自动判定：答案正确' : '自动判定：答案不匹配，请复核',
+    };
+  };
+
   const submitGrade = async () => {
     if (!selectedSubmission) return;
-    await api.gradeAnswer(selectedSubmission.answerId, grade);
+    await api.gradeAnswer(selectedSubmission.answerId, grade, selectedSubmission.examId, comment);
     setSelectedSubmission(null);
     setGrade(0);
     setComment('');
     loadSubmissions();
   };
 
+  const filteredSubmissions = useMemo(() => {
+    if (selectedExamId === 'all') return submissions;
+    return submissions.filter((s) => s.examId === selectedExamId);
+  }, [submissions, selectedExamId]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-120px)]">
       {/* List */}
       <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
         <div className="p-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="font-bold text-gray-700">待阅卷列表 ({submissions.length})</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-bold text-gray-700">待阅卷列表 ({filteredSubmissions.length})</h2>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Filter size={16} />
+              <select
+                value={selectedExamId}
+                onChange={(e) => setSelectedExamId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
+              >
+                <option value="all">全部考试</option>
+                {examList.map((ex) => (
+                  <option key={ex.examId} value={ex.examId}>
+                    {ex.examName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
         <div className="overflow-y-auto flex-1 p-2 space-y-2">
-          {submissions.length === 0 && <p className="text-center text-gray-400 mt-4">暂无待阅卷项。</p>}
-          {submissions.map(sub => (
+          {filteredSubmissions.length === 0 && <p className="text-center text-gray-400 mt-4">暂无待阅卷项。</p>}
+          {filteredSubmissions.map(sub => (
             <div 
               key={sub.answerId}
               onClick={() => setSelectedSubmission(sub)}
@@ -98,21 +145,40 @@ const Grading: React.FC = () => {
 
               {/* Grading Controls */}
               <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-gray-900">人工评分</h3>
-                  <button 
-                    onClick={handleGetAISuggestion}
-                    disabled={aiLoading}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium disabled:opacity-50"
-                  >
-                    <Sparkles size={16} />
-                    {aiLoading ? 'AI 分析中...' : 'AI 辅助点评'}
-                  </button>
+                <div className="flex justify-between items-center mb-4 gap-3">
+                  <div>
+                    <h3 className="font-bold text-gray-900">人工评分</h3>
+                    <p className="text-xs text-gray-500">学号 #{selectedSubmission.studentId} · 考试 #{selectedSubmission.examId}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {selectedSubmission.question?.questionType !== 'short' && (
+                      <button
+                        onClick={() => {
+                          const auto = autoGradeObjective(selectedSubmission);
+                          if (auto) {
+                            setGrade(auto.score);
+                            setComment(auto.comment);
+                          }
+                        }}
+                        className="px-3 py-1.5 text-sm bg-green-50 text-green-700 rounded-lg border border-green-200 hover:bg-green-100"
+                      >
+                        自动判分
+                      </button>
+                    )}
+                    <button 
+                      onClick={handleGetAISuggestion}
+                      disabled={aiLoading}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors text-sm font-medium disabled:opacity-50"
+                    >
+                      <Sparkles size={16} />
+                      {aiLoading ? 'AI 分析中...' : 'AI 辅助点评'}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">得分 (满分: {selectedSubmission.question?.defaultScore})</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">得分 (满分: {selectedSubmission.questionScore ?? selectedSubmission.question?.defaultScore})</label>
                       <input 
                         type="number" 
                         value={grade}

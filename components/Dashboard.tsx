@@ -10,13 +10,26 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   const [activeExams, setActiveExams] = useState<Exam[]>([]);
+  const [upcomingExams, setUpcomingExams] = useState<Exam[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetch = async () => {
       if (user.userRole === 'Student') {
         const exams = await api.getPortalExams();
-        setActiveExams(exams);
+        const now = Date.now();
+        const upcoming = exams.filter((e) => {
+          const joinStatus = (e as any).joinStatus || (e as any).participant?.joinStatus;
+          return new Date(e.startTime).getTime() > now && joinStatus !== 'Submitted';
+        });
+        const active = exams.filter((e) => {
+          const start = new Date(e.startTime).getTime();
+          const end = new Date(e.endTime).getTime();
+          const joinStatus = (e as any).joinStatus || (e as any).participant?.joinStatus;
+          return start <= now && now <= end && joinStatus !== 'Submitted';
+        });
+        setUpcomingExams(upcoming);
+        setActiveExams(active);
       } else {
         const exams = await api.getExams('Active');
         setActiveExams(exams);
@@ -60,64 +73,104 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-6 border-b border-gray-50 flex justify-between items-center">
-          <h3 className="text-lg font-bold text-gray-900">
-            {user.userRole === 'Student' ? '即将进行的考试' : '进行中的场次'}
-          </h3>
-          {user.userRole === 'Teacher' && (
-            <button onClick={() => navigate('/exams')} className="text-sm text-primary font-medium hover:underline">
-              查看全部
-            </button>
-          )}
-        </div>
+      {user.userRole === 'Student' ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-50 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-gray-900">考试列表</h3>
+          </div>
 
-        <div className="divide-y divide-gray-50">
-          {activeExams.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">暂无进行中的考试</div>
-          ) : (
-            activeExams.map((exam) => (
-              <div
-                key={exam.examId}
-                className="p-6 hover:bg-gray-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                    <FileIcon />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 mb-1">{exam.examName}</h4>
-                    <div className="flex items-center gap-4 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Calendar size={14} /> {new Date(exam.startTime).toLocaleString('zh-CN')}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock size={14} /> {exam.durationMinutes} 分钟
-                      </span>
+          <div className="divide-y divide-gray-50">
+            {[...activeExams.map((e) => ({ exam: e, tag: '正在进行' })), ...upcomingExams.map((e) => ({ exam: e, tag: '未开始' }))].length === 0 ? (
+              <div className="p-8 text-center text-gray-500">暂无考试安排</div>
+            ) : (
+              [...activeExams.map((e) => ({ exam: e, tag: '正在进行' })), ...upcomingExams.map((e) => ({ exam: e, tag: '未开始' }))].map(({ exam, tag }) => (
+                <div
+                  key={exam.examId}
+                  className="p-6 hover:bg-gray-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                      <FileIcon />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-1">{exam.examName}</h4>
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={14} /> {new Date(exam.startTime).toLocaleString('zh-CN')}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock size={14} /> {exam.durationMinutes} 分钟
+                        </span>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            tag === '未开始' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' : 'bg-green-50 text-green-700 border border-green-200'
+                          }`}
+                        >
+                          {tag}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {user.userRole === 'Student' ? (
                   <button
                     onClick={() => navigate(`/take-exam/${exam.examId}`)}
                     className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200"
+                    disabled={tag === '未开始'}
                   >
-                    开始考试 <PlayCircle size={18} />
+                    {tag === '未开始' ? '未开始' : '开始考试'} {tag !== '未开始' && <PlayCircle size={18} />}
                   </button>
-                ) : (
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-50 flex justify-between items-center">
+            <h3 className="text-lg font-bold text-gray-900">进行中的场次</h3>
+            <button onClick={() => navigate('/exams')} className="text-sm text-primary font-medium hover:underline">
+              查看全部
+            </button>
+          </div>
+
+          <div className="divide-y divide-gray-50">
+            {activeExams.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">暂无进行中的考试</div>
+            ) : (
+              activeExams.map((exam) => (
+                <div
+                  key={exam.examId}
+                  className="p-6 hover:bg-gray-50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                      <FileIcon />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900 mb-1">{exam.examName}</h4>
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <Calendar size={14} /> {new Date(exam.startTime).toLocaleString('zh-CN')}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock size={14} /> {exam.durationMinutes} 分钟
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                   <button
                     onClick={() => navigate(`/analysis/${exam.examId}`)}
                     className="px-4 py-2 text-gray-700 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50"
                   >
                     查看分析
                   </button>
-                )}
-              </div>
-            ))
-          )}
+                </div>
+              ))
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

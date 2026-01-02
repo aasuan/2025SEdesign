@@ -12,15 +12,20 @@ const StudentResultDetail: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      api.getStudentExamResult(Number(id)).then(res => {
-        setData(res);
-        setLoading(false);
-      });
+      api.getStudentExamResult(Number(id))
+        .then(res => {
+          setData(res);
+        })
+        .catch((err: any) => {
+          console.error(err);
+          setData(null);
+        })
+        .finally(() => setLoading(false));
     }
   }, [id]);
 
   if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
-  if (!data || !data.exam.paper) return <div className="p-8 text-center text-red-500">未找到考试记录</div>;
+  if (!data || !data.exam?.paper) return <div className="p-8 text-center text-red-500">未找到考试记录</div>;
 
   const { exam, answers, scoreRecord } = data;
 

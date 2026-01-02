@@ -19,6 +19,8 @@ public class StudentAnswer implements Serializable {
     private LocalDateTime gradeTime;
     private LocalDateTime saveTime;
     private String extraInfo;
+    private Question question;
+    private BigDecimal questionScore; // from paper_question
 
     public Long getAnswerId() {
         return answerId;
@@ -106,5 +108,21 @@ public class StudentAnswer implements Serializable {
 
     public void setExtraInfo(String extraInfo) {
         this.extraInfo = extraInfo;
+    }
+
+    public Question getQuestion() {
+        return question;
+    }
+
+    public void setQuestion(Question question) {
+        this.question = question;
+    }
+
+    public BigDecimal getQuestionScore() {
+        return questionScore;
+    }
+
+    public void setQuestionScore(BigDecimal questionScore) {
+        this.questionScore = questionScore;
     }
 }

@@ -15,6 +15,19 @@
         <result property="gradeTime" column="grade_time"/>
         <result property="saveTime" column="save_time"/>
         <result property="extraInfo" column="extra_info"/>
+        <result property="questionScore" column="question_score"/>
+    </resultMap>
+
+    <resultMap id="StudentAnswerWithQuestionResultMap" type="org.exp.iexsys.domain.StudentAnswer" extends="StudentAnswerResultMap">
+        <association property="question" javaType="org.exp.iexsys.domain.Question">
+            <id property="questionId" column="q_id"/>
+            <result property="questionType" column="question_type"/>
+            <result property="difficulty" column="difficulty"/>
+            <result property="content" column="content"/>
+            <result property="options" column="options"/>
+            <result property="answer" column="answer"/>
+            <result property="defaultScore" column="default_score"/>
+        </association>
     </resultMap>
 
     <insert id="upsert" parameterType="org.exp.iexsys.domain.StudentAnswer">
@@ -40,5 +53,89 @@
         SELECT answer_id, exam_id, student_id, question_id, student_response, is_graded, obtained_score, grader_id, grade_time, save_time, extra_info
         FROM student_answer
         WHERE exam_id = #{examId} AND student_id = #{studentId} AND question_id = #{questionId}
+    </select>
+
+    <select id="listUngraded" resultMap="StudentAnswerWithQuestionResultMap">
+        SELECT sa.answer_id,
+               sa.exam_id,
+               sa.student_id,
+               sa.question_id,
+               sa.student_response,
+               sa.is_graded,
+               sa.obtained_score,
+               sa.grader_id,
+               sa.grade_time,
+               sa.save_time,
+               sa.extra_info,
+               q.question_id AS q_id,
+               q.question_type,
+               q.difficulty,
+               q.content,
+               q.options,
+               q.answer,
+               q.default_score,
+               pq.question_score
+        FROM student_answer sa
+                 LEFT JOIN question q ON sa.question_id = q.question_id
+                 LEFT JOIN exam e ON sa.exam_id = e.exam_id
+                 LEFT JOIN paper_question pq ON pq.paper_id = e.paper_id AND pq.question_id = sa.question_id
+        WHERE (sa.is_graded = 0 OR sa.is_graded IS NULL)
+        <if test="examId != null">
+            AND sa.exam_id = #{examId}
+        </if>
+        ORDER BY sa.save_time DESC
+    </select>
+
+    <update id="grade">
+        UPDATE student_answer
+        SET is_graded = 1,
+            obtained_score = #{score},
+            grader_id = #{graderId},
+            grade_time = NOW(),
+            extra_info =
+            <choose>
+                <when test="comment != null and comment != ''">
+                    JSON_OBJECT('comment', #{comment})
+                </when>
+                <otherwise>
+                    CAST(NULL AS JSON)
+                </otherwise>
+            </choose>
+        WHERE answer_id = #{answerId}
+    </update>
+
+    <select id="countUngradedByExam" resultType="int">
+        SELECT COUNT(1)
+        FROM student_answer
+        WHERE exam_id = #{examId}
+          AND (is_graded = 0 OR is_graded IS NULL)
+    </select>
+
+    <select id="listWithQuestion" resultMap="StudentAnswerWithQuestionResultMap">
+        SELECT sa.answer_id,
+               sa.exam_id,
+               sa.student_id,
+               sa.question_id,
+               sa.student_response,
+               sa.is_graded,
+               sa.obtained_score,
+               sa.grader_id,
+               sa.grade_time,
+               sa.save_time,
+               sa.extra_info,
+               q.question_id AS q_id,
+               q.question_type,
+               q.difficulty,
+               q.content,
+               q.options,
+               q.answer,
+               q.default_score,
+               pq.question_score
+        FROM student_answer sa
+                 LEFT JOIN question q ON sa.question_id = q.question_id
+                 LEFT JOIN exam e ON sa.exam_id = e.exam_id
+                 LEFT JOIN paper_question pq ON pq.paper_id = e.paper_id AND pq.question_id = sa.question_id
+        WHERE sa.exam_id = #{examId} AND sa.student_id = #{studentId}
+        ORDER BY sa.answer_id ASC
     </select>
 </mapper>

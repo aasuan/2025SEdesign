@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.exp.iexsys.mapper.ScoreRecordMapper">
+
+    <resultMap id="ScoreRecordResultMap" type="org.exp.iexsys.domain.ScoreRecord">
+        <id property="recordId" column="record_id"/>
+        <result property="examId" column="exam_id"/>
+        <result property="paperId" column="paper_id"/>
+        <result property="studentId" column="student_id"/>
+        <result property="totalScore" column="total_score"/>
+        <result property="isFinal" column="is_final"/>
+        <result property="ranking" column="ranking"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="extraInfo" column="extra_info"/>
+        <result property="examName" column="exam_name"/>
+        <result property="startTime" column="start_time"/>
+        <result property="endTime" column="end_time"/>
+        <result property="examStatus" column="status"/>
+    </resultMap>
+
+    <select id="listByStudent" parameterType="long" resultMap="ScoreRecordResultMap">
+        SELECT sr.record_id,
+               sr.exam_id,
+               sr.paper_id,
+               sr.student_id,
+               sr.total_score,
+               sr.is_final,
+               sr.ranking,
+               sr.created_at,
+               sr.updated_at,
+               sr.extra_info,
+               e.exam_name,
+               e.start_time,
+               e.end_time,
+               e.status
+        FROM score_record sr
+                 LEFT JOIN exam e ON sr.exam_id = e.exam_id
+        WHERE sr.student_id = #{studentId}
+        ORDER BY sr.updated_at DESC
+    </select>
+
+    <select id="summaryByStudent" resultType="map">
+        SELECT
+            COUNT(1)                        AS totalExams,
+            COALESCE(AVG(sr.total_score),0) AS avgScore,
+            COALESCE(MAX(sr.total_score),0) AS maxScore,
+            SUM(CASE WHEN sr.total_score >= #{passLine} THEN 1 ELSE 0 END) AS passedExams
+        FROM score_record sr
+        WHERE sr.student_id = #{studentId}
+    </select>
+
+    <select id="selectOne" resultMap="ScoreRecordResultMap">
+        SELECT sr.record_id,
+               sr.exam_id,
+               sr.paper_id,
+               sr.student_id,
+               sr.total_score,
+               sr.is_final,
+               sr.ranking,
+               sr.created_at,
+               sr.updated_at,
+               sr.extra_info,
+               e.exam_name,
+               e.start_time,
+               e.end_time,
+               e.status
+        FROM score_record sr
+                 LEFT JOIN exam e ON sr.exam_id = e.exam_id
+        WHERE sr.exam_id = #{examId} AND sr.student_id = #{studentId}
+        LIMIT 1
+    </select>
+</mapper>

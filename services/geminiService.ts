@@ -1,7 +1,46 @@
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = process.env.API_KEY || 'AIzaSyAkVCPYTqx8hmGV0kNzqGDkrGPHgHxcop4';
+const apiKey = process.env.API_KEY || 'AIzaSyDlbLA1aG71YlbBVI9irzsDZM2S7_pRumw';
 const ai = new GoogleGenAI({ apiKey });
+const MODEL_CANDIDATES = [
+  'models/gemini-3-flash-preview',
+  'models/gemini-2.5-flash',
+  'models/gemini-flash-latest',
+  'models/gemini-2.0-flash',
+];
+
+async function generateWithFallback(payload: { contents: string; mimeJson?: boolean }) {
+  const errors: string[] = [];
+  for (const model of MODEL_CANDIDATES) {
+    try {
+      const res = await ai.models.generateContent({
+        model,
+        contents: payload.contents,
+        ...(payload.mimeJson ? ({ generationConfig: { responseMimeType: 'application/json' } } as any) : {}),
+      });
+      return res;
+    } catch (err: any) {
+      const msg = err?.response?.error?.message || err?.message || String(err);
+      errors.push(`${model}: ${msg}`);
+      // try next
+    }
+  }
+  // No available model in current environment; return null with aggregated errors
+  return { text: '', errors };
+}
+
+const tryParseJson = (raw: string) => {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const cleaned = raw.replace(/```json/gi, '').replace(/```/g, '').trim();
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      return null;
+    }
+  }
+};
 
 export const getAIGradingSuggestion = async (
   questionContent: string,
@@ -26,22 +65,19 @@ export const getAIGradingSuggestion = async (
       The comment must be in Chinese and be constructive.
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json'
-      }
-    });
-
-    const text = response.text;
+    const response: any = await generateWithFallback({ contents: prompt, mimeJson: true });
+    const text = response?.text;
     if (text) {
-      return JSON.parse(text);
+      const parsed = tryParseJson(text);
+      if (parsed) return parsed;
+      return { score: 0, comment: `AI 返回非 JSON：${text}` };
     }
-    return { score: 0, comment: "无法解析 AI 响应。" };
-  } catch (error) {
-    console.error("AI Grading Error:", error);
-    return { score: 0, comment: "AI 服务错误。" };
+    const errs = Array.isArray(response?.errors) ? response.errors.join(' | ') : '模型不可用';
+    return { score: 0, comment: `AI不可用：${errs}` };
+  } catch (error: any) {
+    console.error("AI Grading Error:", error?.response ?? error);
+    const msg = error?.response?.error?.message || error?.message || "AI 服务错误。";
+    return { score: 0, comment: msg };
   }
 };
 
@@ -54,14 +90,12 @@ export const getAIAnalysis = async (examName: string, scores: number[]): Promise
       Provide a brief 3-sentence summary of class performance in Chinese, identifying if the exam was too hard, too easy, or balanced, and suggest a focus area for the next class.
     `;
     
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-    });
-
-    return response.text || "未生成分析结果。";
-  } catch (error) {
-    console.error("AI Analysis Error:", error);
-    return "无法生成分析。";
+    const response: any = await generateWithFallback({ contents: prompt });
+    if (response?.text) return response.text;
+    const errs = Array.isArray(response?.errors) ? response.errors.join(' | ') : '模型不可用';
+    return `AI不可用：${errs}`;
+  } catch (error: any) {
+    console.error("AI Analysis Error:", error?.response ?? error);
+    return error?.response?.error?.message || error?.message || "无法生成分析。";
   }
 };

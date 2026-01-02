@@ -21,11 +21,11 @@ import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Collections;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -58,7 +58,8 @@ public class PortalExamServiceImpl implements PortalExamService {
     public List<Map<String, Object>> listAvailable(Long studentId) {
         List<ExamParticipant> records = examParticipantMapper.listByStudentId(studentId);
         if (CollectionUtils.isEmpty(records)) {
-            return Collections.emptyList();
+            return 
+                    Collections.emptyList();
         }
         List<Long> examIds = records.stream()
                 .map(ExamParticipant::getExamId)
@@ -109,7 +110,10 @@ public class PortalExamServiceImpl implements PortalExamService {
     @Override
     public void heartbeat(Long examId, Long studentId) {
         mustFindExam(examId);
-        ensureParticipant(examId, studentId);
+        ExamParticipant participant = ensureParticipant(examId, studentId);
+        if (!"Submitted".equalsIgnoreCase(participant.getJoinStatus())) {
+            examParticipantMapper.updateStatus(examId, studentId, "InProgress");
+        }
         examParticipantMapper.touchHeartbeat(examId, studentId);
     }
 
@@ -125,6 +129,7 @@ public class PortalExamServiceImpl implements PortalExamService {
     public List<Map<String, Object>> listQuestions(Long examId, Long studentId) {
         Exam exam = mustFindExam(examId);
         ensureParticipant(examId, studentId);
+        validateWindow(exam);
         List<PaperQuestion> items = paperQuestionMapper.selectByPaperId(exam.getPaperId());
         if (CollectionUtils.isEmpty(items)) {
             return Collections.emptyList();
@@ -177,6 +182,9 @@ public class PortalExamServiceImpl implements PortalExamService {
         }
         validateWindow(exam);
         ensureQuestionBelongs(exam, request.getQuestionId());
+        if (!"Submitted".equalsIgnoreCase(participant.getJoinStatus())) {
+            examParticipantMapper.updateStatus(examId, studentId, "InProgress");
+        }
         StudentAnswer answer = new StudentAnswer();
         answer.setExamId(examId);
         answer.setStudentId(studentId);
@@ -198,6 +206,7 @@ public class PortalExamServiceImpl implements PortalExamService {
         if ("Canceled".equalsIgnoreCase(exam.getStatus())) {
             throw new IllegalArgumentException("Exam has been canceled");
         }
+        validateWindow(exam);
         examParticipantMapper.markSubmitted(examId, studentId);
     }
 
@@ -211,11 +220,10 @@ public class PortalExamServiceImpl implements PortalExamService {
 
     private ExamParticipant ensureParticipant(Long examId, Long studentId) {
         ExamParticipant participant = examParticipantMapper.selectOne(examId, studentId);
-        if (participant != null) {
-            return participant;
+        if (participant == null) {
+            throw new IllegalArgumentException("Student not in participant list");
         }
-        examParticipantMapper.insertBatch(examId, Collections.singletonList(studentId));
-        return examParticipantMapper.selectOne(examId, studentId);
+        return participant;
     }
 
     private void validateWindow(Exam exam) {

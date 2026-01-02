@@ -12,6 +12,7 @@ public class PaperQuestion implements Serializable {
     private Long questionId;
     private BigDecimal questionScore;
     private Integer sequenceNum;
+    private Question question;
 
     public Long getPqId() {
         return pqId;
@@ -51,5 +52,13 @@ public class PaperQuestion implements Serializable {
 
     public void setSequenceNum(Integer sequenceNum) {
         this.sequenceNum = sequenceNum;
+    }
+
+    public Question getQuestion() {
+        return question;
+    }
+
+    public void setQuestion(Question question) {
+        this.question = question;
     }
 }

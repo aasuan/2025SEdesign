@@ -3,6 +3,7 @@ package org.exp.iexsys.domain;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 试卷模板/实例。
@@ -16,6 +17,8 @@ public class Paper implements Serializable {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private String extraInfo;
+    private List<PaperQuestion> questions;
+    private List<PaperQuestion> items;
 
     public Long getPaperId() {
         return paperId;
@@ -79,5 +82,21 @@ public class Paper implements Serializable {
 
     public void setExtraInfo(String extraInfo) {
         this.extraInfo = extraInfo;
+    }
+
+    public List<PaperQuestion> getQuestions() {
+        return questions;
+    }
+
+    public void setQuestions(List<PaperQuestion> questions) {
+        this.questions = questions;
+    }
+
+    public List<PaperQuestion> getItems() {
+        return items;
+    }
+
+    public void setItems(List<PaperQuestion> items) {
+        this.items = items;
     }
 }

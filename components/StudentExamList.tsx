@@ -27,6 +27,10 @@ const StudentExamList: React.FC = () => {
 
   const getExamStatus = (exam: Exam) => {
     const scoreRecord = myScores.find((s) => s.examId === exam.examId);
+    const joinStatus = (exam as any).joinStatus || (exam as any).participant?.joinStatus;
+    if (String(joinStatus || '').toLowerCase() === 'submitted') {
+      return { type: 'completed', label: '已提交', score: scoreRecord?.totalScore, record: scoreRecord };
+    }
 
     if (scoreRecord) {
       return { type: 'completed', label: '已完成', score: scoreRecord.totalScore, record: scoreRecord };
@@ -46,11 +50,11 @@ const StudentExamList: React.FC = () => {
   const filteredExams = allExams.filter((exam) => {
     const status = getExamStatus(exam);
     if (activeTab === 'todo') {
-      return (status.type === 'active' || status.type === 'upcoming') && !status.record;
-    } else {
+          return (status.type === 'active' || status.type === 'upcoming') && !status.record;
+        } else {
       return status.record || status.type === 'missed' || status.type === 'canceled' || status.type === 'completed';
-    }
-  });
+        }
+      });
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });

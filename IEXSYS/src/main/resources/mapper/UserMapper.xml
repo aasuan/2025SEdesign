@@ -48,6 +48,18 @@
         WHERE phone_number = #{phone}
     </select>
 
+    <select id="searchByKeyword" resultMap="UserResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM user
+        WHERE status = 'Active'
+        <if test="keyword != null and keyword != ''">
+            AND (username LIKE CONCAT('%', #{keyword}, '%') OR real_name LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY updated_at DESC
+        LIMIT #{limit}
+    </select>
+
     <insert id="insert" parameterType="org.exp.iexsys.domain.User" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO user (username, password_hash, real_name, email, phone_number, user_role, status)
         VALUES (#{username}, #{password}, #{realName}, #{email}, #{phone}, #{userRole}, 'Active')

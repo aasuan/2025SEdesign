@@ -86,6 +86,18 @@ export interface Exam {
   paper?: Paper;
 }
 
+export interface ExamParticipant {
+  studentId: number;
+  username?: string;
+  realName?: string;
+  joinStatus?: string;
+  status?: string; // normalized status for UI
+  submitted?: boolean;
+  progress?: string;
+  joinTime?: string;
+  submitTime?: string;
+}
+
 export interface StudentAnswer {
   answerId: number;
   examId: number;
@@ -96,6 +108,7 @@ export interface StudentAnswer {
   obtainedScore: number;
   graderId?: number;
   gradeTime?: string;
+  questionScore?: number;
   question?: Question;
 }
 
@@ -108,6 +121,9 @@ export interface ScoreRecord {
   isFinal: boolean;
   ranking: number;
   examName?: string;
+  startTime?: string;
+  endTime?: string;
+  examStatus?: string;
 }
 
 export interface DashboardStats {

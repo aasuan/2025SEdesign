@@ -112,5 +112,11 @@ public class UserServiceImpl implements UserService {
         }
         return userMapper.selectById(userId);
     }
-}
 
+    @Override
+    public java.util.List<User> search(String keyword, Integer limit) {
+        int rows = (limit == null || limit <= 0 || limit > 50) ? 20 : limit;
+        String kw = StringUtils.hasText(keyword) ? keyword.trim() : "";
+        return userMapper.searchByKeyword(kw, rows);
+    }
+}

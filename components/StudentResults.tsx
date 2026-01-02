@@ -35,37 +35,27 @@ const StudentResults: React.FC = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [scores, exams] = await Promise.all([
-          api.getMyScores(),
-          api.getPortalExams()
-        ]);
+        const scoreResp = await api.getMyScores();
+        const scores = scoreResp.records || [];
+        const summary = scoreResp.summary || {};
 
         const enhancedRecords = scores.map(score => {
-          const exam = exams.find(e => e.examId === score.examId);
           return {
             ...score,
-            examName: exam?.examName || score.examName || '未知考试',
-            examDate: exam?.startTime || new Date().toISOString(),
-            // Mocking max score for now, ideally comes from Paper
+            examName: score.examName || '未知考试',
+            examDate: score.startTime || new Date().toISOString(),
             maxScore: 100 
           };
         }).sort((a, b) => new Date(b.examDate).getTime() - new Date(a.examDate).getTime());
 
         setRecords(enhancedRecords);
 
-        // Calculate stats
-        if (enhancedRecords.length > 0) {
-          const totalScore = enhancedRecords.reduce((sum, r) => sum + r.totalScore, 0);
-          const max = Math.max(...enhancedRecords.map(r => r.totalScore));
-          const passed = enhancedRecords.filter(r => r.totalScore >= 60).length;
-
-          setStats({
-            avgScore: Math.round(totalScore / enhancedRecords.length),
-            maxScore: max,
-            totalExams: enhancedRecords.length,
-            passedExams: passed
-          });
-        }
+        setStats({
+          avgScore: Math.round(summary.avgScore || 0),
+          maxScore: Math.round(summary.maxScore || 0),
+          totalExams: summary.totalExams || enhancedRecords.length,
+          passedExams: summary.passedExams || enhancedRecords.filter(r => r.totalScore >= 60).length
+        });
       } finally {
         setLoading(false);
       }
@@ -140,9 +130,9 @@ const StudentResults: React.FC = () => {
           <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
             <TrendingUp size={18} className="text-gray-400"/> 成绩趋势
           </h3>
-          <div className="h-64">
+          <div className="h-64 min-h-[260px]">
             {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="99%" height="100%">
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" tick={{fontSize: 12}} />
@@ -175,7 +165,7 @@ const StudentResults: React.FC = () => {
             {records.slice(0, 5).map(record => (
               <div 
                 key={record.recordId} 
-                onClick={() => navigate(`/exam-result/${record.examId}`)}
+                onClick={() => record.examId && navigate(`/exam-result/${record.examId}`)}
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
               >
                 <div className="overflow-hidden">

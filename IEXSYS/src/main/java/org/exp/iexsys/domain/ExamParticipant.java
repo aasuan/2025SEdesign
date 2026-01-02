@@ -10,6 +10,8 @@ public class ExamParticipant implements Serializable {
     private Long epId;
     private Long examId;
     private Long studentId;
+    private String username;
+    private String realName;
     private String joinStatus;
     private LocalDateTime joinTime;
     private LocalDateTime submitTime;
@@ -36,6 +38,22 @@ public class ExamParticipant implements Serializable {
 
     public void setStudentId(Long studentId) {
         this.studentId = studentId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getRealName() {
+        return realName;
+    }
+
+    public void setRealName(String realName) {
+        this.realName = realName;
     }
 
     public String getJoinStatus() {

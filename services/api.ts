@@ -4,6 +4,8 @@ import {
   Paper,
   PaperQuestionItem,
   PaperRule,
+  Exam,
+  ExamParticipant,
   Question,
   QuestionListResult,
   QuestionType,
@@ -412,11 +414,44 @@ class ApiService {
     });
   }
 
+  async getExamParticipants(examId: number): Promise<ExamParticipant[]> {
+    try {
+      const data = await this.request<any[]>(`/api/exams/${examId}/participants`);
+      return (data || []).map((p) => ({
+        studentId: Number(p.studentId ?? p.student_id),
+        username: p.username,
+        realName: p.realName ?? p.real_name,
+        joinStatus: p.joinStatus ?? p.join_status,
+        joinTime: p.joinTime ?? p.join_time,
+        submitTime: p.submitTime ?? p.submit_time,
+        status: (p.joinStatus ?? p.join_status) || undefined,
+        submitted: (() => {
+          const raw = (p.joinStatus ?? p.join_status ?? '') as string;
+          return raw.toLowerCase() === 'submitted' || Boolean(p.submitTime ?? p.submit_time);
+        })(),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async searchUsers(keyword: string, limit = 20): Promise<UserProfile[]> {
+    const query = new URLSearchParams();
+    if (keyword) query.set('keyword', keyword);
+    if (limit) query.set('limit', String(limit));
+    return this.request<UserProfile[]>(`/api/users?${query.toString()}`);
+  }
+
   async getPortalExams(): Promise<Exam[]> {
     const data = await this.request<Array<{ exam: any; participant: any }>>('/api/portal/exams');
     if (!Array.isArray(data)) return [];
-    // attach exam only (participant used server-side for status)
-    return data.map((row) => this.normalizeExam(row.exam || row));
+    return data.map((row) => {
+      const exam = this.normalizeExam(row.exam || row);
+      const participant = row.participant || {};
+      (exam as any).participant = participant;
+      (exam as any).joinStatus = participant.joinStatus ?? participant.join_status;
+      return exam;
+    });
   }
 
   async enterPortalExam(examId: number) {
@@ -469,21 +504,51 @@ class ApiService {
     }
   }
 
-  async getUngradedAnswers(): Promise<StudentAnswer[]> {
-    return this.answers.filter((a) => !a.isGraded);
+  async getUngradedAnswers(examId?: number): Promise<StudentAnswer[]> {
+    try {
+      const query = examId ? `?examId=${examId}` : '';
+      const data = await this.request<any[]>(`/api/grading/ungraded${query}`);
+      return (data || []).map((row) => {
+        const q = row.question
+          ? this.normalizeQuestion(row.question)
+          : row.questionId
+          ? this.normalizeQuestion({
+              questionId: row.questionId,
+              questionType: row.questionType || row.question_type,
+              difficulty: row.difficulty,
+              content: row.content,
+              options: row.options,
+              answer: row.answer,
+              defaultScore: row.defaultScore ?? row.default_score,
+            })
+          : undefined;
+        return {
+          answerId: Number(row.answerId ?? row.answer_id),
+          examId: Number(row.examId ?? row.exam_id),
+          studentId: Number(row.studentId ?? row.student_id),
+          questionId: Number(row.questionId ?? row.question_id),
+          studentResponse: row.studentResponse ?? row.student_response ?? '',
+          isGraded: row.graded ?? row.isGraded ?? row.is_graded ?? false,
+          obtainedScore: Number(row.obtainedScore ?? row.obtained_score ?? 0),
+          graderId: row.graderId ?? row.grader_id,
+          gradeTime: row.gradeTime ?? row.grade_time,
+          questionScore: Number(row.questionScore ?? row.question_score ?? q?.defaultScore ?? 0),
+          question: q,
+        };
+      });
+    } catch {
+      return this.answers.filter((a) => !a.isGraded);
+    }
   }
 
-  async gradeAnswer(answerId: number, score: number): Promise<void> {
-    const ans = this.answers.find((a) => a.answerId === answerId);
-    if (ans) {
-      ans.obtainedScore = score;
-      ans.isGraded = true;
-      const record = this.scores.find((s) => s.examId === ans.examId && s.studentId === ans.studentId);
-      if (record) {
-        const allExamAnswers = this.answers.filter((a) => a.examId === ans.examId && a.studentId === ans.studentId);
-        record.totalScore = allExamAnswers.reduce((sum, a) => sum + (a.obtainedScore || 0), 0);
-      }
+  async gradeAnswer(answerId: number, score: number, examId?: number, comment?: string): Promise<void> {
+    if (!examId) {
+      throw new Error('缺少考试ID，无法提交评分');
     }
+    await this.request(`/api/grading/answers/${answerId}/grade`, {
+      method: 'POST',
+      body: JSON.stringify({ score, comment: comment?.trim() || undefined, examId }),
+    });
   }
 
   async submitExamAnswers(examId: number, answers: { questionId: number; response: string }[]): Promise<void> {
@@ -500,8 +565,9 @@ class ApiService {
     });
   }
 
-  async getMyScores(): Promise<ScoreRecord[]> {
-    return this.scores.filter((s) => s.studentId === this.currentUser?.id);
+  async getMyScores(): Promise<{ records: ScoreRecord[]; summary: any }> {
+    const data = await this.request<{ records: ScoreRecord[]; summary: any }>('/api/scores/me');
+    return data;
   }
 
   async getExamStats() {
@@ -509,11 +575,54 @@ class ApiService {
   }
 
   async getStudentExamResult(examId: number) {
-    const exam = await this.getExamDetails(examId);
-    if (!exam || !this.currentUser) return null;
-    const answers = this.answers.filter((a) => a.examId === examId && a.studentId === this.currentUser?.id);
-    const scoreRecord = this.scores.find((s) => s.examId === examId && s.studentId === this.currentUser?.id);
-    return { exam, answers, scoreRecord };
+    try {
+      const data = await this.request<{ exam: any; paper: any; answers: any[]; scoreRecord: any }>(
+        `/api/scores/me/detail?examId=${examId}`,
+        { method: 'GET' },
+      );
+      const exam = this.normalizeExam(data.exam);
+      let paper = data.paper;
+      if (paper) {
+        paper.questions = (paper.questions || paper.items || []).map((it: any) => ({
+          ...it,
+          question: it.question ? this.normalizeQuestion(it.question) : undefined,
+        }));
+        paper.items = paper.questions;
+      } else if (exam.paperId) {
+        try {
+          paper = await this.getPaperDetail(exam.paperId);
+        } catch {
+          paper = undefined;
+        }
+      }
+      const answers = (data.answers || []).map((a) => ({
+        answerId: a.answerId ?? a.answer_id,
+        examId: a.examId ?? a.exam_id,
+        studentId: a.studentId ?? a.student_id,
+        questionId: a.questionId ?? a.question_id,
+        studentResponse: a.studentResponse ?? a.student_response,
+        isGraded: a.isGraded ?? a.is_graded ?? false,
+        obtainedScore: a.obtainedScore ?? a.obtained_score ?? 0,
+        graderId: a.graderId ?? a.grader_id,
+        gradeTime: a.gradeTime ?? a.grade_time,
+        questionScore: a.questionScore ?? a.question_score ?? a.question?.defaultScore,
+        question: a.question ? this.normalizeQuestion(a.question) : undefined,
+      })) as any[];
+      const scoreRecord = data.scoreRecord
+        ? {
+            recordId: data.scoreRecord.recordId ?? data.scoreRecord.record_id,
+            examId: data.scoreRecord.examId ?? data.scoreRecord.exam_id,
+            studentId: data.scoreRecord.studentId ?? data.scoreRecord.student_id,
+            paperId: data.scoreRecord.paperId ?? data.scoreRecord.paper_id,
+            totalScore: Number(data.scoreRecord.totalScore ?? data.scoreRecord.total_score ?? 0),
+            isFinal: !!(data.scoreRecord.isFinal ?? data.scoreRecord.is_final),
+            ranking: data.scoreRecord.ranking,
+          }
+        : undefined;
+      return { exam: { ...exam, paper }, answers, scoreRecord };
+    } catch (err) {
+      throw err;
+    }
   }
 }
 

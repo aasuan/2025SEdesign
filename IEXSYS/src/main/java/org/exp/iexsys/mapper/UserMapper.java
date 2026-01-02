@@ -18,5 +18,6 @@ public interface UserMapper {
     int insert(User user);
 
     int updatePhone(@Param("id") Long id, @Param("phone") String phone);
-}
 
+    java.util.List<User> searchByKeyword(@Param("keyword") String keyword, @Param("limit") Integer limit);
+}

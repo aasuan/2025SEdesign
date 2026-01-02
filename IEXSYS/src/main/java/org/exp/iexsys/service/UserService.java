@@ -23,5 +23,9 @@ public interface UserService {
      * 绑定或更新手机号（需校验唯一性）。
      */
     User bindPhone(Long userId, String phone);
-}
 
+    /**
+     * 按用户名或真实姓名模糊搜索，默认最多返回 20 条。
+     */
+    java.util.List<User> search(String keyword, Integer limit);
+}
