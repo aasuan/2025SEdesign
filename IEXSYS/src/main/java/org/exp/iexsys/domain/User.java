@@ -24,6 +24,8 @@ public class User implements Serializable {
     private LocalDateTime createdAt;
     /** 最近更新时间 */
     private LocalDateTime updatedAt;
+    /** 额外信息，例如人脸照片等，JSON 格式 */
+    private String extraInfo;
 
     public Long getId() {
         return id;
@@ -103,6 +105,14 @@ public class User implements Serializable {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getExtraInfo() {
+        return extraInfo;
+    }
+
+    public void setExtraInfo(String extraInfo) {
+        this.extraInfo = extraInfo;
     }
 }
 

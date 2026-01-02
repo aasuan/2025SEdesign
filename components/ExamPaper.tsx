@@ -13,6 +13,7 @@ const ExamPaper: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [showTimeWarning, setShowTimeWarning] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
@@ -30,10 +31,13 @@ const ExamPaper: React.FC = () => {
     const load = async () => {
       if (!id) return;
       try {
+        await waitForCamera();
+        const snapshot = captureSnapshot();
+        await api.verifyFace(Number(id), snapshot);
+
         const { exam: entered } = await api.enterPortalExam(Number(id));
         const qList = await api.getPortalQuestions(Number(id));
         const mapped = mapPortalQuestions(qList);
-        // prefill answers
         const initialAnswers: Record<number, string> = {};
         mapped.forEach((item) => {
           if ((item as any).studentResponse) {
@@ -130,6 +134,7 @@ const ExamPaper: React.FC = () => {
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
             await videoRef.current.play();
+            setCameraReady(true);
           }
           setCameraActive(true);
         }
@@ -143,6 +148,36 @@ const ExamPaper: React.FC = () => {
       if (stream) stream.getTracks().forEach((t) => t.stop());
     };
   }, []);
+
+  const waitForCamera = async () => {
+    if (cameraReady) return;
+    await new Promise<void>((resolve, reject) => {
+      const start = Date.now();
+      const timer = setInterval(() => {
+        if (cameraReady) {
+          clearInterval(timer);
+          resolve();
+        } else if (Date.now() - start > 8000) {
+          clearInterval(timer);
+          reject(new Error('摄像头未就绪，请检查权限'));
+        }
+      }, 150);
+    });
+  };
+
+  const captureSnapshot = () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      throw new Error('摄像头不可用');
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('无法获取画布上下文');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.8);
+  };
 
   const handleAnswerChange = async (qId: number, val: string) => {
     setAnswers((prev) => ({ ...prev, [qId]: val }));

@@ -454,6 +454,13 @@ class ApiService {
     });
   }
 
+  async verifyFace(examId: number, capturedImage: string) {
+    return this.request<void>(`/api/portal/exams/${examId}/face-verify`, {
+      method: 'POST',
+      body: JSON.stringify({ capturedImage }),
+    });
+  }
+
   async enterPortalExam(examId: number) {
     const data = await this.request<{ exam: any; participant: any }>(`/api/portal/exams/${examId}/enter`, {
       method: 'POST',
