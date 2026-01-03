@@ -33,7 +33,7 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, currentView, onChangeVi
       <aside className="w-full md:w-64 bg-white border-r border-slate-200 flex-shrink-0">
         <div className="p-6 border-b border-slate-100 flex items-center gap-2">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-             <GraduationCap className="text-white" size={20} />
+            <GraduationCap className="text-white" size={20} />
           </div>
           <h1 className="text-xl font-bold text-slate-800">SmartExam</h1>
         </div>
@@ -42,7 +42,9 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, currentView, onChangeVi
           <nav className="flex-1 space-y-2">
             {isTeacher ? (
               <>
-                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-4 mt-4">教学管理</div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-4 mt-4">
+                  教学管理
+                </div>
                 <NavItem view="teacher-dashboard" icon={BarChart2} label="仪表盘" />
                 <NavItem view="question-bank" icon={BookOpen} label="题库管理" />
                 <NavItem view="exam-manager" icon={List} label="试卷管理" />
@@ -50,9 +52,12 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, currentView, onChangeVi
               </>
             ) : (
               <>
-                 <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-4 mt-4">学习中心</div>
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-4 mt-4">
+                  学习中心
+                </div>
                 <NavItem view="student-dashboard" icon={BookOpen} label="我的考试" />
                 <NavItem view="student-results" icon={BarChart2} label="成绩与分析" />
+                <NavItem view="student-profile" icon={UserIcon} label="个人中心" />
               </>
             )}
           </nav>
@@ -80,9 +85,7 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, currentView, onChangeVi
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto h-screen">
-        <div className="max-w-7xl mx-auto p-4 md:p-8">
-          {children}
-        </div>
+        <div className="max-w-7xl mx-auto p-4 md:p-8">{children}</div>
       </main>
     </div>
   );

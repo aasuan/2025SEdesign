@@ -19,5 +19,7 @@ public interface UserMapper {
 
     int updatePhone(@Param("id") Long id, @Param("phone") String phone);
 
+    int updateExtraInfo(@Param("id") Long id, @Param("extraInfo") String extraInfo);
+
     java.util.List<User> searchByKeyword(@Param("keyword") String keyword, @Param("limit") Integer limit);
 }

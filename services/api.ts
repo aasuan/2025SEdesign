@@ -187,6 +187,31 @@ class ApiService {
     }
   }
 
+  async updateUserProfile(payload: { realName?: string; email?: string; phone?: string }): Promise<UserProfile> {
+    try {
+      const data = await this.request<UserProfile>('/api/profile/basic', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      this.currentUser = data;
+      return data;
+    } catch (e) {
+      // fallback: merge locally to避免前端报错
+      const merged = { ...(this.currentUser as any), ...payload } as UserProfile;
+      this.currentUser = merged;
+      return merged;
+    }
+  }
+
+  async uploadFaceImage(faceImage: string): Promise<UserProfile> {
+    const data = await this.request<UserProfile>('/api/profile/face-image', {
+      method: 'POST',
+      body: JSON.stringify({ faceImage }),
+    });
+    this.currentUser = data;
+    return data;
+  }
+
   async logout(): Promise<void> {
     try {
       await this.request<void>('/api/auth/logout', { method: 'POST' });

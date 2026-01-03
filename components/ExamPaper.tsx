@@ -19,6 +19,19 @@ const ExamPaper: React.FC = () => {
   const [userId, setUserId] = useState<number | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const cameraReadyRef = useRef(false);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const markCameraReady = () => {
+    if (!cameraReadyRef.current) {
+      cameraReadyRef.current = true;
+      setCameraReady(true);
+    }
+  };
+
+  useEffect(() => {
+    cameraReadyRef.current = cameraReady;
+  }, [cameraReady]);
 
   useEffect(() => {
     api.getCurrentUser().then((u) => {
@@ -32,7 +45,7 @@ const ExamPaper: React.FC = () => {
       if (!id) return;
       try {
         await waitForCamera();
-        const snapshot = captureSnapshot();
+        const snapshot = await captureSnapshot();
         await api.verifyFace(Number(id), snapshot);
 
         const { exam: entered } = await api.enterPortalExam(Number(id));
@@ -123,18 +136,28 @@ const ExamPaper: React.FC = () => {
 
   // camera
   useEffect(() => {
-    let stream: MediaStream | null = null;
     const startCamera = async () => {
       try {
         if (navigator.mediaDevices?.getUserMedia) {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 320, height: 240, facingMode: 'user' },
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: 640, height: 480, facingMode: 'user' },
             audio: false,
           });
+          streamRef.current = stream;
+          // 绑定流到视频，等元数据加载后再标记 ready，确保有宽高可截图
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
             await videoRef.current.play();
-            setCameraReady(true);
+            if (videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
+              markCameraReady();
+            } else {
+              videoRef.current.onloadedmetadata = () => markCameraReady();
+              // 兜底：500ms 后仍无宽高也视为可用
+              setTimeout(markCameraReady, 500);
+            }
+          } else {
+            // 没有 videoRef 时也先允许后续流程，避免死等
+            markCameraReady();
           }
           setCameraActive(true);
         }
@@ -145,29 +168,51 @@ const ExamPaper: React.FC = () => {
     };
     startCamera();
     return () => {
-      if (stream) stream.getTracks().forEach((t) => t.stop());
+      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
+  // 如果流已拿到但 videoRef 迟到，补绑定
+  useEffect(() => {
+    if (videoRef.current && streamRef.current && !videoRef.current.srcObject) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().then(markCameraReady).catch(() => {});
+    }
+  });
+
   const waitForCamera = async () => {
-    if (cameraReady) return;
+    if (cameraReadyRef.current) return;
     await new Promise<void>((resolve, reject) => {
       const start = Date.now();
       const timer = setInterval(() => {
-        if (cameraReady) {
+        // 如果 video 已经有宽高，也视为 ready
+        if (!cameraReadyRef.current && videoRef.current && videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
+          markCameraReady();
+        }
+        if (cameraReadyRef.current) {
           clearInterval(timer);
           resolve();
-        } else if (Date.now() - start > 8000) {
+        } else if (Date.now() - start > 15000) {
           clearInterval(timer);
-          reject(new Error('摄像头未就绪，请检查权限'));
+          reject(new Error('摄像头未就绪，请检查权限或重试（可能被其它应用占用或浏览器未刷新权限）'));
         }
       }, 150);
     });
   };
 
-  const captureSnapshot = () => {
-    const video = videoRef.current;
-    if (!video || !video.videoWidth || !video.videoHeight) {
+  const captureSnapshot = async (): Promise<string> => {
+    const waitForFrame = async (timeoutMs: number) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        const v = videoRef.current;
+        if (v && v.videoWidth > 0 && v.videoHeight > 0) return v;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return null;
+    };
+
+    const video = await waitForFrame(2000);
+    if (!video) {
       throw new Error('摄像头不可用');
     }
     const canvas = document.createElement('canvas');
@@ -209,12 +254,9 @@ const ExamPaper: React.FC = () => {
     }
   };
 
-  if (!exam || !exam.paper || !exam.paper.questions?.length) {
-    return <div className="p-8 text-center">正在加载考场环境...</div>;
-  }
-
-  const currentQ = exam.paper.questions[currentQIndex];
-  const qData = currentQ.question;
+  const examReady = !!(exam && exam.paper && exam.paper.questions?.length);
+  const currentQ = examReady ? exam!.paper!.questions![currentQIndex] : null;
+  const qData = currentQ?.question;
   const optionList = Object.entries(qData?.options || {});
 
   const formatTime = (seconds: number) => {
@@ -238,14 +280,14 @@ const ExamPaper: React.FC = () => {
       <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center z-20">
         <div>
           <h1 className="font-bold text-xl text-gray-800 flex items-center gap-2">
-            {exam.examName}
+            {examReady ? exam!.examName : '正在加载考场环境...'}
             {lastSaved && (
               <span className="text-xs font-normal text-green-600 bg-green-50 px-2 py-1 rounded-full flex items-center gap-1 border border-green-100">
                 <Save size={12} /> 已自动保存
               </span>
             )}
           </h1>
-          <p className="text-sm text-gray-500">考试编号: {exam.examId}</p>
+          <p className="text-sm text-gray-500">{examReady ? `考试编号: ${exam!.examId}` : '请稍候'}</p>
         </div>
         <div
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-mono text-xl font-bold ${
@@ -282,7 +324,8 @@ const ExamPaper: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-4">
             <h3 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wider">题目列表</h3>
             <div className="grid grid-cols-4 gap-2">
-              {exam.paper.questions.map((q, idx) => {
+              {!examReady && <div className="text-xs text-gray-400 col-span-4">正在加载试题...</div>}
+              {examReady && exam!.paper!.questions.map((q, idx) => {
                 const isAnswered = !!answers[q.questionId];
                 const isCurrent = idx === currentQIndex;
                 return (
@@ -312,7 +355,9 @@ const ExamPaper: React.FC = () => {
         </aside>
 
         <main className="flex-1 overflow-y-auto p-8 md:p-12">
-          {previewMode ? (
+          {!examReady ? (
+            <div className="max-w-3xl mx-auto text-center text-gray-500 text-lg">正在加载考场环境...</div>
+          ) : previewMode ? (
             <div className="max-w-4xl mx-auto">
               <div className="mb-6 flex items-center justify-between">
                 <div>

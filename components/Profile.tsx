@@ -1,7 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { UserProfile } from '../types';
-import { User, Mail, Phone, Lock, Shield, Save, Key } from 'lucide-react';
+import {
+  User,
+  Mail,
+  Phone,
+  Lock,
+  Shield,
+  Save,
+  Key,
+  Image as ImageIcon,
+  UploadCloud,
+} from 'lucide-react';
 
 const Profile: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -25,8 +35,8 @@ const Profile: React.FC = () => {
           <button
             onClick={() => setActiveTab('info')}
             className={`flex-1 py-4 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'info' 
-                ? 'border-primary text-primary bg-blue-50/50' 
+              activeTab === 'info'
+                ? 'border-primary text-primary bg-blue-50/50'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -35,8 +45,8 @@ const Profile: React.FC = () => {
           <button
             onClick={() => setActiveTab('security')}
             className={`flex-1 py-4 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === 'security' 
-                ? 'border-primary text-primary bg-blue-50/50' 
+              activeTab === 'security'
+                ? 'border-primary text-primary bg-blue-50/50'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
@@ -56,12 +66,14 @@ const Profile: React.FC = () => {
   );
 };
 
-const BasicInfoForm: React.FC<{ user: UserProfile, onUpdate: (u: UserProfile) => void }> = ({ user, onUpdate }) => {
+const BasicInfoForm: React.FC<{ user: UserProfile; onUpdate: (u: UserProfile) => void }> = ({ user, onUpdate }) => {
   const [formData, setFormData] = useState({
     realName: user.realName || '',
     email: user.email || '',
-    phone: user.phone || ''
+    phone: user.phone || '',
   });
+  const [facePreview, setFacePreview] = useState<string>('');
+  const [uploadingFace, setUploadingFace] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,11 +82,39 @@ const BasicInfoForm: React.FC<{ user: UserProfile, onUpdate: (u: UserProfile) =>
     try {
       const updatedUser = await api.updateUserProfile(formData);
       onUpdate(updatedUser);
-      alert('个人信息更新成功！');
+      alert('个人信息更新成功');
     } catch (err) {
       alert('更新失败，请重试');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFaceFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setFacePreview(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUploadFace = async () => {
+    if (!facePreview) {
+      alert('请先选择人脸照片');
+      return;
+    }
+    setUploadingFace(true);
+    try {
+      const updated = await api.uploadFaceImage(facePreview);
+      onUpdate(updated);
+      alert('人脸上传成功，将在进入考试时用于身份核验');
+    } catch (err: any) {
+      alert(err?.message || '上传失败，请重试');
+    } finally {
+      setUploadingFace(false);
     }
   };
 
@@ -98,7 +138,7 @@ const BasicInfoForm: React.FC<{ user: UserProfile, onUpdate: (u: UserProfile) =>
             type="text"
             required
             value={formData.realName}
-            onChange={e => setFormData({...formData, realName: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, realName: e.target.value })}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
@@ -114,7 +154,7 @@ const BasicInfoForm: React.FC<{ user: UserProfile, onUpdate: (u: UserProfile) =>
             type="email"
             required
             value={formData.email}
-            onChange={e => setFormData({...formData, email: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
@@ -130,7 +170,7 @@ const BasicInfoForm: React.FC<{ user: UserProfile, onUpdate: (u: UserProfile) =>
             type="tel"
             required
             value={formData.phone}
-            onChange={e => setFormData({...formData, phone: e.target.value})}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
@@ -145,6 +185,36 @@ const BasicInfoForm: React.FC<{ user: UserProfile, onUpdate: (u: UserProfile) =>
           <Save size={18} /> {loading ? '保存中...' : '保存更改'}
         </button>
       </div>
+
+      <div className="mt-10 border-t pt-6 space-y-4">
+        <div className="flex items-center gap-2 text-gray-800 font-semibold">
+          <ImageIcon size={18} className="text-primary" />
+          <span>人脸照片（用于进入考试时验证）</span>
+        </div>
+        <p className="text-sm text-gray-500">
+          请上传本人清晰正脸照，避免遮挡、强背光，建议尺寸 ≥ 200x200。仅用于本系统身份核验。
+        </p>
+        <div className="space-y-3">
+          <input type="file" accept="image/*" onChange={handleFaceFile} className="text-sm text-gray-700" />
+          {facePreview && (
+            <div className="flex items-center gap-4">
+              <div className="w-28 h-28 rounded-lg overflow-hidden border bg-gray-50">
+                <img src={facePreview} alt="预览" className="w-full h-full object-cover" />
+              </div>
+              <div className="text-xs text-gray-500">预览：如不满意可重新选择。</div>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handleUploadFace}
+            disabled={uploadingFace}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-60"
+          >
+            <UploadCloud size={18} />
+            {uploadingFace ? '上传中...' : '上传并保存人脸'}
+          </button>
+        </div>
+      </div>
     </form>
   );
 };
@@ -153,7 +223,7 @@ const SecurityForm: React.FC<{ user: UserProfile }> = ({ user }) => {
   const [passData, setPassData] = useState({
     newPassword: '',
     confirmPassword: '',
-    code: ''
+    code: '',
   });
   const [countdown, setCountdown] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -161,7 +231,7 @@ const SecurityForm: React.FC<{ user: UserProfile }> = ({ user }) => {
   useEffect(() => {
     let timer: any;
     if (countdown > 0) {
-      timer = setInterval(() => setCountdown(c => c - 1), 1000);
+      timer = setInterval(() => setCountdown((c) => c - 1), 1000);
     }
     return () => clearInterval(timer);
   }, [countdown]);
@@ -186,7 +256,7 @@ const SecurityForm: React.FC<{ user: UserProfile }> = ({ user }) => {
       alert('新密码长度不能少于6位');
       return;
     }
-    
+
     setLoading(true);
     try {
       await api.changePassword(passData.newPassword, passData.code);
@@ -203,7 +273,7 @@ const SecurityForm: React.FC<{ user: UserProfile }> = ({ user }) => {
     <form onSubmit={handleChangePassword} className="space-y-6 max-w-lg mx-auto">
       <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-lg mb-6 flex items-start gap-3 text-sm text-yellow-800">
         <Shield className="flex-shrink-0 mt-0.5" size={16} />
-        <p>为了保障您的账号安全，修改密码需要验证您的身份。验证码将发送至您绑定的手机或邮箱。</p>
+        <p>为保障您的账号安全，修改密码需要验证您的身份。验证码将发送至您绑定的手机或邮箱。</p>
       </div>
 
       <div>
@@ -217,7 +287,7 @@ const SecurityForm: React.FC<{ user: UserProfile }> = ({ user }) => {
             required
             placeholder="不少于6位"
             value={passData.newPassword}
-            onChange={e => setPassData({...passData, newPassword: e.target.value})}
+            onChange={(e) => setPassData({ ...passData, newPassword: e.target.value })}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
@@ -234,7 +304,7 @@ const SecurityForm: React.FC<{ user: UserProfile }> = ({ user }) => {
             required
             placeholder="再次输入新密码"
             value={passData.confirmPassword}
-            onChange={e => setPassData({...passData, confirmPassword: e.target.value})}
+            onChange={(e) => setPassData({ ...passData, confirmPassword: e.target.value })}
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
           />
         </div>
@@ -244,15 +314,15 @@ const SecurityForm: React.FC<{ user: UserProfile }> = ({ user }) => {
         <label className="block text-sm font-medium text-gray-700 mb-1">验证码</label>
         <div className="flex gap-3">
           <div className="relative flex-1">
-             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
               <Key size={18} />
             </div>
             <input
               type="text"
               required
-              placeholder="请输入6位验证码"
+              placeholder="请输入验证码"
               value={passData.code}
-              onChange={e => setPassData({...passData, code: e.target.value})}
+              onChange={(e) => setPassData({ ...passData, code: e.target.value })}
               className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
@@ -261,8 +331,8 @@ const SecurityForm: React.FC<{ user: UserProfile }> = ({ user }) => {
             onClick={handleSendCode}
             disabled={countdown > 0}
             className={`w-32 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              countdown > 0 
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+              countdown > 0
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 : 'bg-white border border-primary text-primary hover:bg-blue-50'
             }`}
           >

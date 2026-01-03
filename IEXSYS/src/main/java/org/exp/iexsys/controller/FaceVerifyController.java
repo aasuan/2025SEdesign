@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 import org.exp.iexsys.common.ApiResponse;
 import org.exp.iexsys.domain.User;
 import org.exp.iexsys.dto.UserProfile;
+import org.exp.iexsys.service.CompreFaceClient;
 import org.exp.iexsys.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,10 +25,12 @@ public class FaceVerifyController {
     private static final Logger log = LoggerFactory.getLogger(FaceVerifyController.class);
     private static final String SESSION_KEY = "LOGIN_USER";
     private final UserService userService;
+    private final CompreFaceClient comprefaceClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public FaceVerifyController(UserService userService) {
+    public FaceVerifyController(UserService userService, CompreFaceClient comprefaceClient) {
         this.userService = userService;
+        this.comprefaceClient = comprefaceClient;
     }
 
     @PostMapping("/{id}/face-verify")
@@ -36,24 +39,31 @@ public class FaceVerifyController {
                                       HttpSession session) {
         UserProfile profile = (UserProfile) session.getAttribute(SESSION_KEY);
         if (profile == null || profile.getId() == null) {
-            return ApiResponse.failure(401, "未登录");
+            return ApiResponse.failure(401, "not logged in");
         }
         User user = userService.findById(profile.getId().intValue());
         if (user == null) {
-            return ApiResponse.failure(401, "用户不存在");
+            return ApiResponse.failure(401, "user not found");
         }
         String extra = user.getExtraInfo();
         String baseline = extractFaceImage(extra);
         if (baseline == null || baseline.isEmpty()) {
-            return ApiResponse.failure(400, "未上传人脸照片，请先前往个人中心-账号安全上传");
+            return ApiResponse.failure(400, "未上传人脸，请先在个人中心-基本信息上传");
         }
         if (req.getCapturedImage() == null || req.getCapturedImage().isEmpty()) {
-            return ApiResponse.failure(400, "未提供现场照片");
+            return ApiResponse.failure(400, "captured image is empty");
         }
-        // TODO: 集成人脸比对模型/服务，这里仅做占位
-        log.info("Face verify request examId={}, user={}, baseline length={}, capture length={}",
-                examId, profile.getUsername(), baseline.length(), req.getCapturedImage().length());
-        return ApiResponse.success("face verified");
+        CompreFaceClient.FaceMatchResult result = comprefaceClient.verifyFaces(baseline, req.getCapturedImage());
+        if (!result.isOk()) {
+            return ApiResponse.failure(502, "face service error: " + result.getError());
+        }
+        double similarity = result.getSimilarity() == null ? 0.0 : result.getSimilarity();
+        if (!result.isPassed()) {
+            log.info("Face verify failed examId={}, user={}, similarity={}", examId, profile.getUsername(), similarity);
+            return ApiResponse.failure(400, "face verification failed, similarity=" + similarity);
+        }
+        log.info("Face verify success examId={}, user={}, similarity={}", examId, profile.getUsername(), similarity);
+        return ApiResponse.success("face verified, similarity=" + similarity);
     }
 
     private String extractFaceImage(String extraInfo) {

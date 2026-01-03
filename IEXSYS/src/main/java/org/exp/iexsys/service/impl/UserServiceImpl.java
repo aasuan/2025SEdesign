@@ -1,13 +1,15 @@
 package org.exp.iexsys.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.exp.iexsys.domain.User;
 import org.exp.iexsys.dto.RegisterRequest;
 import org.exp.iexsys.mapper.UserMapper;
 import org.exp.iexsys.service.UserService;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Service
 @Transactional
@@ -15,6 +17,7 @@ public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public UserServiceImpl(UserMapper userMapper, PasswordEncoder passwordEncoder) {
         this.userMapper = userMapper;
@@ -79,7 +82,7 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("用户名或密码错误");
         }
         if ("Locked".equalsIgnoreCase(user.getStatus())) {
-            throw new IllegalArgumentException("账户已锁定");
+            throw new IllegalArgumentException("账号已锁定");
         }
         return user;
     }
@@ -104,13 +107,41 @@ public class UserServiceImpl implements UserService {
         }
         User byPhone = userMapper.selectByPhone(phone);
         if (byPhone != null && !byPhone.getId().equals(userId)) {
-            throw new IllegalArgumentException("手机号已被其他账户绑定");
+            throw new IllegalArgumentException("手机号已被其他账号绑定");
         }
         int updated = userMapper.updatePhone(userId, phone);
         if (updated <= 0) {
             throw new IllegalStateException("绑定手机号失败，请稍后再试");
         }
         return userMapper.selectById(userId);
+    }
+
+    @Override
+    public User updateFaceImage(Long userId, String faceImageBase64) {
+        if (userId == null) {
+            throw new IllegalArgumentException("未登录");
+        }
+        if (!StringUtils.hasText(faceImageBase64)) {
+            throw new IllegalArgumentException("人脸图片不能为空");
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new IllegalArgumentException("用户不存在");
+        }
+        try {
+            ObjectNode node = StringUtils.hasText(user.getExtraInfo())
+                    ? (ObjectNode) objectMapper.readTree(user.getExtraInfo())
+                    : objectMapper.createObjectNode();
+            node.put("faceImage", faceImageBase64.trim());
+            String updated = objectMapper.writeValueAsString(node);
+            int rows = userMapper.updateExtraInfo(userId, updated);
+            if (rows <= 0) {
+                throw new IllegalStateException("保存人脸信息失败，请稍后重试");
+            }
+            return userMapper.selectById(userId);
+        } catch (Exception e) {
+            throw new IllegalStateException("保存人脸信息失败，请稍后重试", e);
+        }
     }
 
     @Override

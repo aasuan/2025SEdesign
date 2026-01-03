@@ -14,10 +14,11 @@
         <result property="status" column="status"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
+        <result property="extraInfo" column="extra_info"/>
     </resultMap>
 
     <sql id="BaseColumns">
-        user_id, username, password_hash, real_name, email, phone_number, user_role, status, created_at, updated_at
+        user_id, username, password_hash, real_name, email, phone_number, user_role, status, created_at, updated_at, extra_info
     </sql>
 
     <select id="selectById" parameterType="long" resultMap="UserResultMap">
@@ -56,18 +57,23 @@
         <if test="keyword != null and keyword != ''">
             AND (username LIKE CONCAT('%', #{keyword}, '%') OR real_name LIKE CONCAT('%', #{keyword}, '%'))
         </if>
-        ORDER BY updated_at DESC
         LIMIT #{limit}
     </select>
 
     <insert id="insert" parameterType="org.exp.iexsys.domain.User" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO user (username, password_hash, real_name, email, phone_number, user_role, status)
-        VALUES (#{username}, #{password}, #{realName}, #{email}, #{phone}, #{userRole}, 'Active')
+        INSERT INTO user (username, password_hash, real_name, email, phone_number, user_role, status, extra_info)
+        VALUES (#{username}, #{password}, #{realName}, #{email}, #{phone}, #{userRole}, 'Active', #{extraInfo})
     </insert>
 
     <update id="updatePhone">
         UPDATE user
         SET phone_number = #{phone}, updated_at = NOW()
+        WHERE user_id = #{id}
+    </update>
+
+    <update id="updateExtraInfo">
+        UPDATE user
+        SET extra_info = #{extraInfo}, updated_at = NOW()
         WHERE user_id = #{id}
     </update>
 </mapper>
