@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Exam, ScoreRecord } from '../types';
@@ -101,7 +101,7 @@ const StudentExamList: React.FC = () => {
             </div>
             <h3 className="text-lg font-medium text-gray-900">{activeTab === 'todo' ? '暂无待参加的考试' : '暂无考试记录'}</h3>
             <p className="text-gray-500 mt-1">
-              {activeTab === 'todo' ? '请关注新通知，当前没有待完成的考试。' : '你还没有参加过考试。'}
+              {activeTab === 'todo' ? '请留意新的考试通知，当前没有待完成的考试。' : '你还没有参加过考试。'}
             </p>
           </div>
         ) : (
@@ -147,7 +147,7 @@ const StudentExamList: React.FC = () => {
                 <div className="flex items-center gap-4 w-full md:w-auto border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6">
                   {status.type === 'active' && (
                     <button
-                      onClick={() => navigate(`/take-exam/${exam.examId}`)}
+                      onClick={() => navigate(`/face-verify/${exam.examId}`)}
                       className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg hover:bg-blue-700 shadow-sm shadow-blue-200 transition-all active:scale-95"
                     >
                       开始考试 <Play size={16} fill="currentColor" />

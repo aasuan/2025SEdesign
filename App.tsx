@@ -5,6 +5,7 @@ import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import ExamList from './components/ExamList';
 import ExamPaper from './components/ExamPaper';
+import FaceVerify from './components/FaceVerify';
 import Grading from './components/Grading';
 import Analysis from './components/Analysis';
 import QuestionBank from './components/QuestionBank'; // Import QuestionBank
@@ -51,6 +52,7 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <Routes>
+        <Route path="/face-verify/:id" element={<FaceVerify />} />
         <Route path="/take-exam/:id" element={<ExamPaper />} />
         
         <Route path="*" element={

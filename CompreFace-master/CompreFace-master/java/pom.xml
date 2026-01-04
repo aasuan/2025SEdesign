@@ -35,7 +35,7 @@
         <spring-cloud.version>2020.0.5</spring-cloud.version>
 
         <mapstruct.version>1.5.2.Final</mapstruct.version>
-        <lombok.version>1.18.20</lombok.version>
+        <lombok.version>1.18.30</lombok.version>
         <swagger.version>2.9.2</swagger.version>
         <io.jsonwebtoken.version>0.11.2</io.jsonwebtoken.version>
         <feign-form.version>3.8.0</feign-form.version>
@@ -254,5 +254,41 @@
             </plugins>
         </pluginManagement>
     </build>
+
+    <profiles>
+        <profile>
+            <id>windows-nd4j</id>
+            <activation>
+                <os>
+                    <family>Windows</family>
+                </os>
+            </activation>
+            <properties>
+                <nd4j.classifier>windows-x86_64</nd4j.classifier>
+            </properties>
+        </profile>
+        <profile>
+            <id>linux-nd4j</id>
+            <activation>
+                <os>
+                    <name>Linux</name>
+                </os>
+            </activation>
+            <properties>
+                <nd4j.classifier>linux-x86_64</nd4j.classifier>
+            </properties>
+        </profile>
+        <profile>
+            <id>mac-nd4j</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                </os>
+            </activation>
+            <properties>
+                <nd4j.classifier>macosx-x86_64</nd4j.classifier>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { UserProfile, Exam } from '../types';
 import { api } from '../services/api';
 import { Calendar, Clock, AlertCircle, PlayCircle, BarChart } from 'lucide-react';
@@ -43,8 +43,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
       <h2 className="text-3xl font-bold mb-2">欢迎回来，{user.realName}</h2>
       <p className="text-blue-100">
         {user.userRole === 'Student'
-          ? '准备好展示你的知识了吗？查看下方即将开始的考试。'
-          : '高效管理考试任务，实时追踪学生进度。'}
+          ? '准备好展示你的知识了吗？查看下方即将开始的考试'
+          : '高效管理考试任务，实时追踪学生进度'}
       </p>
     </div>
   );
@@ -113,7 +113,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user }) => {
                   </div>
 
                   <button
-                    onClick={() => navigate(`/take-exam/${exam.examId}`)}
+                    onClick={() => navigate(`/face-verify/${exam.examId}`)}
                     className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-full font-medium hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200"
                     disabled={tag === '未开始'}
                   >
