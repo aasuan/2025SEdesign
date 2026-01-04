@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.exp.iexsys.mapper.ProctorCommandMapper">
+
+    <resultMap id="CommandResultMap" type="org.exp.iexsys.domain.ProctorCommand">
+        <id property="cmdId" column="cmd_id"/>
+        <result property="examId" column="exam_id"/>
+        <result property="studentId" column="student_id"/>
+        <result property="cmdType" column="cmd_type"/>
+        <result property="alertId" column="alert_id"/>
+        <result property="payload" column="payload"/>
+        <result property="delivered" column="delivered"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="deliveredAt" column="delivered_at"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        cmd_id, exam_id, student_id, cmd_type, alert_id, payload, delivered, created_at, delivered_at
+    </sql>
+
+    <insert id="insert" parameterType="org.exp.iexsys.domain.ProctorCommand" useGeneratedKeys="true" keyProperty="cmdId">
+        INSERT INTO exam_proctor_command (exam_id, student_id, cmd_type, alert_id, payload, delivered)
+        VALUES (#{examId}, #{studentId}, #{cmdType}, #{alertId}, #{payload}, #{delivered})
+    </insert>
+
+    <select id="listUndelivered" resultMap="CommandResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM exam_proctor_command
+        WHERE exam_id = #{examId}
+          AND student_id = #{studentId}
+          AND delivered = 0
+        ORDER BY created_at ASC
+    </select>
+
+    <update id="markDelivered">
+        UPDATE exam_proctor_command
+        SET delivered = 1, delivered_at = NOW()
+        WHERE cmd_id = #{cmdId}
+    </update>
+
+</mapper>

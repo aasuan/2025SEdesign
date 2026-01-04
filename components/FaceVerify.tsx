@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { Camera, RefreshCw, ShieldCheck, XCircle } from 'lucide-react';
@@ -9,7 +9,7 @@ const FaceVerify: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [status, setStatus] = useState<'idle' | 'verifying' | 'passed' | 'failed'>('idle');
-  const [message, setMessage] = useState<string>('请允许摄像头权限，准备进行人脸验证');
+  const [message, setMessage] = useState<string>('请先允许摄像头权限，准备进行人脸验证');
 
   useEffect(() => {
     const startCamera = async () => {
@@ -65,17 +65,20 @@ const FaceVerify: React.FC = () => {
       const img = await captureSnapshot();
       await api.verifyFace(Number(id), img);
       setStatus('passed');
-      setMessage('人脸验证通过，即将进入考试');
+      setMessage('人脸验证通过，正在进入考试');
       setTimeout(() => navigate(`/take-exam/${id}`), 800);
     } catch (err: any) {
       setStatus('failed');
-      setMessage(err?.message || '人脸验证失败，请重试');
+      const msg = String(err?.message || '');
+      if (msg.toLowerCase().includes('未检测到人脸') || msg.toLowerCase().includes('no face')) {
+        setMessage('未检测到人脸，请正对摄像头，保证光线充足后重试');
+      } else {
+        setMessage(msg || '人脸验证失败，请重试');
+      }
     }
   };
 
-  const handleBack = () => {
-    navigate('/my-exams');
-  };
+  const handleBack = () => navigate('/my-exams');
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -99,7 +102,7 @@ const FaceVerify: React.FC = () => {
                 </div>
               )}
             </div>
-            <div className="text-xs text-gray-500">请确保光线充足、正对摄像头，避免遮挡。</div>
+            <div className="text-xs text-gray-500">确保光线充足、正对摄像头，避免遮挡。</div>
           </div>
 
           <div className="flex flex-col gap-4">

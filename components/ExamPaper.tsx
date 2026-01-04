@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Exam, PaperQuestionItem, Question } from '../types';
@@ -21,6 +21,8 @@ const ExamPaper: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const cameraReadyRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const commandTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoVerifyTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const markCameraReady = () => {
     if (!cameraReadyRef.current) {
@@ -144,7 +146,6 @@ const ExamPaper: React.FC = () => {
             audio: false,
           });
           streamRef.current = stream;
-          // 绑定流到视频，等元数据加载后再标记 ready，确保有宽高可截图
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
             await videoRef.current.play();
@@ -152,11 +153,9 @@ const ExamPaper: React.FC = () => {
               markCameraReady();
             } else {
               videoRef.current.onloadedmetadata = () => markCameraReady();
-              // 兜底：500ms 后仍无宽高也视为可用
               setTimeout(markCameraReady, 500);
             }
           } else {
-            // 没有 videoRef 时也先允许后续流程，避免死等
             markCameraReady();
           }
           setCameraActive(true);
@@ -169,10 +168,12 @@ const ExamPaper: React.FC = () => {
     startCamera();
     return () => {
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+      if (commandTimerRef.current) clearInterval(commandTimerRef.current);
+      if (autoVerifyTimerRef.current) clearInterval(autoVerifyTimerRef.current);
     };
   }, []);
 
-  // 如果流已拿到但 videoRef 迟到，补绑定
+  // bind stream if video ref comes later
   useEffect(() => {
     if (videoRef.current && streamRef.current && !videoRef.current.srcObject) {
       videoRef.current.srcObject = streamRef.current;
@@ -185,7 +186,6 @@ const ExamPaper: React.FC = () => {
     await new Promise<void>((resolve, reject) => {
       const start = Date.now();
       const timer = setInterval(() => {
-        // 如果 video 已经有宽高，也视为 ready
         if (!cameraReadyRef.current && videoRef.current && videoRef.current.videoWidth > 0 && videoRef.current.videoHeight > 0) {
           markCameraReady();
         }
@@ -194,7 +194,7 @@ const ExamPaper: React.FC = () => {
           resolve();
         } else if (Date.now() - start > 15000) {
           clearInterval(timer);
-          reject(new Error('摄像头未就绪，请检查权限或重试（可能被其它应用占用或浏览器未刷新权限）'));
+          reject(new Error('摄像头未就绪，请检查权限或重试'));
         }
       }, 150);
     });
@@ -219,9 +219,76 @@ const ExamPaper: React.FC = () => {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('无法获取画布上下文');
+    if (!ctx) throw new Error('无法获取画布');
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL('image/jpeg', 0.8);
+  };
+
+  const runVerification = async () => {
+    if (!id) return;
+    const snapshot = await captureSnapshot();
+    await api.verifyFace(Number(id), snapshot);
+  };
+
+  // poll proctor commands
+  useEffect(() => {
+    if (!id || !userId) return;
+    const poll = async () => {
+      try {
+        const cmds = await api.pollProctorCommands(Number(id), userId);
+        for (const cmd of cmds || []) {
+          await handleCommand(cmd);
+          if (cmd.cmdId) {
+            await api.markCommandDelivered(cmd.cmdId);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+    poll();
+    commandTimerRef.current = setInterval(poll, 10000);
+    return () => {
+      if (commandTimerRef.current) clearInterval(commandTimerRef.current);
+    };
+  }, [id, userId]);
+
+  // auto verify every 15 minutes
+  useEffect(() => {
+    if (!id) return;
+    const tick = async () => {
+      try {
+        await runVerification();
+      } catch (e) {
+        // ignore auto errors
+      }
+    };
+    autoVerifyTimerRef.current = setInterval(tick, 15 * 60 * 1000);
+    return () => {
+      if (autoVerifyTimerRef.current) clearInterval(autoVerifyTimerRef.current);
+    };
+  }, [id]);
+
+  const handleCommand = async (cmd: any) => {
+    if (!cmd || !cmd.cmdType) return;
+    const type = String(cmd.cmdType);
+    if (type === 'warn') {
+      alert(cmd.payload || '疑似作弊，警告一次');
+    } else if (type === 'force_submit') {
+      alert(cmd.payload || '已被监考老师强制交卷');
+      await handleSubmit(true);
+    } else if (type === 'manual_verify') {
+      try {
+        await runVerification();
+      } catch (e: any) {
+        const msg = String(e?.message || '');
+        if (msg.toLowerCase().includes('未检测到人脸') || msg.toLowerCase().includes('no face')) {
+          alert('未检测到人脸，请调整位置后再次验证');
+        } else {
+          alert(msg || '人脸验证失败，请重试');
+        }
+      }
+    }
   };
 
   const handleAnswerChange = async (qId: number, val: string) => {
@@ -301,7 +368,7 @@ const ExamPaper: React.FC = () => {
 
       {showTimeWarning && (
         <div className="bg-yellow-50 text-yellow-800 px-6 py-3 text-center text-sm font-medium border-b border-yellow-200">
-          考试时间仅剩5分钟，距考试截止时间仅有5分钟，请尽快完成并提交。
+          考试时间仅剩5分钟，请尽快完成并提交。
         </div>
       )}
 
@@ -421,7 +488,7 @@ const ExamPaper: React.FC = () => {
             <div className="max-w-3xl mx-auto">
               <div className="mb-6">
                 <span className="inline-block px-3 py-1 bg-gray-200 rounded-full text-xs font-semibold text-gray-700 mb-3">
-                  {getQuestionTypeLabel(qData.questionType)} · {currentQ.questionScore} 分
+                  {getQuestionTypeLabel(qData.questionType)} · {currentQ!.questionScore} 分
                 </span>
                 <h2 className="text-2xl font-medium text-gray-900 leading-relaxed">
                   {currentQIndex + 1}. {qData.content}
@@ -498,16 +565,16 @@ const ExamPaper: React.FC = () => {
 
                 <button
                   onClick={() => {
-                    if (currentQIndex === exam.paper!.questions!.length - 1) {
+                    if (currentQIndex === exam!.paper!.questions!.length - 1) {
                       setPreviewMode(true);
                     } else {
-                      setCurrentQIndex(Math.min(exam.paper!.questions!.length - 1, currentQIndex + 1));
+                      setCurrentQIndex(Math.min(exam!.paper!.questions!.length - 1, currentQIndex + 1));
                     }
                   }}
                   disabled={false}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {currentQIndex === exam.paper!.questions!.length - 1 ? '整卷预览' : '下一题'}
+                  {currentQIndex === exam!.paper!.questions!.length - 1 ? '整卷预览' : '下一题'}
                 </button>
               </div>
             </div>
@@ -551,7 +618,6 @@ function mapPortalQuestions(raw: any[]): PaperQuestionItem[] {
       paperId: 0,
       question: q,
       pqId: item.pqId,
-      // carry student response for prefill
       ...(item.studentResponse ? { studentResponse: item.studentResponse } : {}),
     } as any;
   });

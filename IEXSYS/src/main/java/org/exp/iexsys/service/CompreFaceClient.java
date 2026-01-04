@@ -90,7 +90,9 @@ public class CompreFaceClient {
         } catch (HttpStatusCodeException ex) {
             String resp = ex.getResponseBodyAsString();
             log.warn("CompreFace verification call failed status={}, body={}", ex.getStatusCode(), resp);
-            return FaceMatchResult.error("HTTP " + ex.getStatusCode().value() + ": " + resp);
+            String parsedMsg = extractErrorMessage(resp);
+            String error = parsedMsg != null ? parsedMsg : ("HTTP " + ex.getStatusCode().value() + ": " + resp);
+            return FaceMatchResult.error(error);
         } catch (RestClientException ex) {
             log.warn("CompreFace verification call failed", ex);
             return FaceMatchResult.error("Call CompreFace failed: " + ex.getMessage());
@@ -122,6 +124,29 @@ public class CompreFaceClient {
         factory.setConnectTimeout((int) Duration.ofSeconds(5).toMillis());
         factory.setReadTimeout((int) Duration.ofSeconds(10).toMillis());
         return new RestTemplate(factory);
+    }
+
+    private String extractErrorMessage(String body) {
+        if (body == null || body.isEmpty()) {
+            return null;
+        }
+        try {
+            String lowered = body.toLowerCase();
+            if (lowered.contains("no face is found")) {
+                return "No face is found in the given image";
+            }
+            int msgIndex = body.indexOf("\"message\"");
+            if (msgIndex >= 0) {
+                int colon = body.indexOf(':', msgIndex);
+                int firstQuote = body.indexOf('"', colon + 1);
+                int secondQuote = body.indexOf('"', firstQuote + 1);
+                if (firstQuote > -1 && secondQuote > firstQuote) {
+                    return body.substring(firstQuote + 1, secondQuote);
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     public static class FaceMatchResult {

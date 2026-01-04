@@ -9,6 +9,7 @@ import org.exp.iexsys.common.ApiResponse;
 import org.exp.iexsys.domain.User;
 import org.exp.iexsys.dto.UserProfile;
 import org.exp.iexsys.service.CompreFaceClient;
+import org.exp.iexsys.service.ProctorService;
 import org.exp.iexsys.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,11 +27,13 @@ public class FaceVerifyController {
     private static final String SESSION_KEY = "LOGIN_USER";
     private final UserService userService;
     private final CompreFaceClient comprefaceClient;
+    private final ProctorService proctorService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public FaceVerifyController(UserService userService, CompreFaceClient comprefaceClient) {
+    public FaceVerifyController(UserService userService, CompreFaceClient comprefaceClient, ProctorService proctorService) {
         this.userService = userService;
         this.comprefaceClient = comprefaceClient;
+        this.proctorService = proctorService;
     }
 
     @PostMapping("/{id}/face-verify")
@@ -45,21 +48,28 @@ public class FaceVerifyController {
         if (user == null) {
             return ApiResponse.failure(401, "user not found");
         }
-        String extra = user.getExtraInfo();
-        String baseline = extractFaceImage(extra);
+
+        String baseline = extractFaceImage(user.getExtraInfo());
         if (baseline == null || baseline.isEmpty()) {
             return ApiResponse.failure(400, "未上传人脸，请先在个人中心-基本信息上传");
         }
         if (req.getCapturedImage() == null || req.getCapturedImage().isEmpty()) {
-            return ApiResponse.failure(400, "captured image is empty");
+            return ApiResponse.failure(400, "未获取到当前摄像头图片");
         }
+
         CompreFaceClient.FaceMatchResult result = comprefaceClient.verifyFaces(baseline, req.getCapturedImage());
         if (!result.isOk()) {
-            return ApiResponse.failure(502, "face service error: " + result.getError());
+            String error = result.getError() == null ? "未知错误" : result.getError();
+            boolean noFace = error.toLowerCase().contains("no face");
+            proctorService.createAlert(examId, profile.getId(), req.getCapturedImage(), result.getSimilarity(), error);
+            String tip = noFace ? "未检测到人脸，请正对摄像头后重试" : ("face service error: " + error);
+            return ApiResponse.failure(400, tip);
         }
+
         double similarity = result.getSimilarity() == null ? 0.0 : result.getSimilarity();
         if (!result.isPassed()) {
             log.info("Face verify failed examId={}, user={}, similarity={}", examId, profile.getUsername(), similarity);
+            proctorService.createAlert(examId, profile.getId(), req.getCapturedImage(), result.getSimilarity(), "verify failed");
             return ApiResponse.failure(400, "face verification failed, similarity=" + similarity);
         }
         log.info("Face verify success examId={}, user={}, similarity={}", examId, profile.getUsername(), similarity);

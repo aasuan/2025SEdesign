@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { Exam, ExamParticipant, Paper, UserProfile } from '../types';
-import { Plus, Edit2, X, Calendar, Clock, FileText, Eye } from 'lucide-react';
+import { Exam, ExamParticipant, Paper, UserProfile, ProctorAlert } from '../types';
+import { Plus, Edit2, X, Calendar, Clock, FileText, Eye, AlertTriangle } from 'lucide-react';
 
 const ExamList: React.FC = () => {
   const [exams, setExams] = useState<Exam[]>([]);
@@ -22,6 +22,11 @@ const ExamList: React.FC = () => {
   const [detailParticipants, setDetailParticipants] = useState<ExamParticipant[]>([]);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [sendingVerify, setSendingVerify] = useState(false);
+  const [alerts, setAlerts] = useState<ProctorAlert[]>([]);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [pendingMap, setPendingMap] = useState<Record<number, boolean>>({});
+  const [activeAlert, setActiveAlert] = useState<ProctorAlert | null>(null);
 
   useEffect(() => {
     fetchExams();
@@ -31,6 +36,19 @@ const ExamList: React.FC = () => {
   const fetchExams = async () => {
     const data = await api.getExams();
     setExams(data);
+    const pending: Record<number, boolean> = {};
+    try {
+      const alertLists = await Promise.all(
+        data.map((exam) => api.listProctorAlerts(exam.examId).catch(() => [] as ProctorAlert[])),
+      );
+      data.forEach((exam, idx) => {
+        const list = alertLists[idx] || [];
+        pending[exam.examId] = list.some((a) => a.status === 'pending');
+      });
+      setPendingMap(pending);
+    } catch {
+      /* ignore alert fetch error */
+    }
   };
 
   const fetchPapers = async () => {
@@ -92,7 +110,7 @@ const ExamList: React.FC = () => {
     }
     const diffMinutes = (endDate.getTime() - startDate.getTime()) / (1000 * 60);
     if (durationMinutes > diffMinutes) {
-      alert('考试时长不得大于（结束时间-开始时间）');
+      alert('考试时长不能大于(结束时间-开始时间)');
       return;
     }
 
@@ -131,18 +149,30 @@ const ExamList: React.FC = () => {
   };
 
   const fetchDetail = async (examId: number, silent = false) => {
-    if (!silent) setDetailLoading(true);
+    if (!silent) {
+      setDetailLoading(true);
+      setAlertsLoading(true);
+    }
     try {
-      const [full, participants] = await Promise.all([
+      const [full, participants, alertList] = await Promise.all([
         api.getExamDetails(examId),
         api.getExamParticipants(examId),
+        api.listProctorAlerts(examId),
       ]);
       setDetailExam(full || detailExam);
       setDetailParticipants(participants || []);
+      setAlerts(alertList || []);
+      setPendingMap((prev) => ({
+        ...prev,
+        [examId]: (alertList || []).some((a) => a.status === 'pending'),
+      }));
     } catch {
       /* keep previous detail on error */
     } finally {
-      if (!silent) setDetailLoading(false);
+      if (!silent) {
+        setDetailLoading(false);
+        setAlertsLoading(false);
+      }
     }
   };
 
@@ -152,6 +182,19 @@ const ExamList: React.FC = () => {
     setDetailParticipants([]);
     setDetailExam(exam);
     await fetchDetail(exam.examId);
+  };
+
+  const handleManualVerify = async () => {
+    if (!detailExam) return;
+    setSendingVerify(true);
+    try {
+      await api.triggerManualVerify(detailExam.examId);
+      alert('已发起全员人脸验证指令');
+    } catch (e: any) {
+      alert(e?.message || '发起人脸验证失败');
+    } finally {
+      setSendingVerify(false);
+    }
   };
 
   const handleSearchParticipants = async () => {
@@ -212,6 +255,26 @@ const ExamList: React.FC = () => {
     }, 10000);
     return () => clearInterval(timer);
   }, [isDetailOpen, detailExam?.examId]);
+
+  const handleWarn = async (alertId: number) => {
+    try {
+      await api.warnAlert(alertId);
+      if (detailExam) await fetchDetail(detailExam.examId, true);
+      setActiveAlert(null);
+    } catch (e: any) {
+      alert(e?.message || '警告失败');
+    }
+  };
+
+  const handleForce = async (alertId: number) => {
+    try {
+      await api.forceSubmitAlert(alertId);
+      if (detailExam) await fetchDetail(detailExam.examId, true);
+      setActiveAlert(null);
+    } catch (e: any) {
+      alert(e?.message || '强制交卷失败');
+    }
+  };
 
   return (
     <div>
@@ -275,8 +338,15 @@ const ExamList: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 flex gap-3 text-gray-400">
-                      <button onClick={() => handleViewExam(exam)} className="hover:text-blue-600" title="查看详情">
+                      <button
+                        onClick={() => handleViewExam(exam)}
+                        className="hover:text-blue-600 relative"
+                        title="查看详情"
+                      >
                         <Eye size={18} />
+                        {pendingMap[exam.examId] && (
+                          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                        )}
                       </button>
                       {!isEnded && (
                         <button onClick={() => handleEdit(exam)} className="hover:text-blue-600" title="编辑">
@@ -295,18 +365,32 @@ const ExamList: React.FC = () => {
       {isDetailOpen && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl">
-            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-800">考试详情</h2>
-              <button
-                onClick={() => {
-                  setIsDetailOpen(false);
-                  setDetailParticipants([]);
-                  setDetailExam(null);
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X size={24} />
-              </button>
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center gap-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-gray-800">考试详情</h2>
+                {alerts.some((a) => a.status === 'pending') && (
+                  <span className="inline-flex items-center justify-center w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleManualVerify}
+                  disabled={sendingVerify}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-60 text-sm font-medium"
+                >
+                  {sendingVerify ? '发送中...' : '发起人脸验证'}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsDetailOpen(false);
+                    setDetailParticipants([]);
+                    setDetailExam(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X size={24} />
+                </button>
+              </div>
             </div>
 
             <div className="p-6 space-y-4">
@@ -337,27 +421,12 @@ const ExamList: React.FC = () => {
                       <div className="text-xs text-gray-500 mb-1">考试时长</div>
                       <div>{detailExam.durationMinutes} 分钟</div>
                     </div>
-                    <div>
-                      <div className="text-xs text-gray-500 mb-1">状态</div>
-                      {(() => {
-                        const status = getExamStatus(detailExam);
-                        return (
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.badgeClass}`}
-                          >
-                            {status.label}
-                          </span>
-                        );
-                      })()}
-                    </div>
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold text-gray-800">考生名单</h3>
-                      <span className="text-xs text-gray-500">
-                        共 {detailParticipants.length} 人
-                      </span>
+                      <span className="text-xs text-gray-500">共 {detailParticipants.length} 人</span>
                     </div>
                     {detailParticipants.length === 0 ? (
                       <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg p-4">
@@ -372,23 +441,122 @@ const ExamList: React.FC = () => {
                               <th className="px-4 py-2 text-left text-gray-500 font-medium">姓名</th>
                               <th className="px-4 py-2 text-left text-gray-500 font-medium">用户名</th>
                               <th className="px-4 py-2 text-left text-gray-500 font-medium">完成状态</th>
+                              <th className="px-4 py-2 text-left text-gray-500 font-medium">监考</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100">
-                            {detailParticipants.map((p) => (
-                              <tr key={p.studentId}>
-                                <td className="px-4 py-2 text-gray-800">{p.studentId}</td>
-                                <td className="px-4 py-2 text-gray-700">{p.realName || '-'}</td>
-                                <td className="px-4 py-2 text-gray-700">{p.username || '-'}</td>
-                                <td className="px-4 py-2">
-                                  {(() => {
-                                    const s = getParticipantStatus(p);
-                                    return (
-                                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${s.badgeClass}`}>
-                                        {s.label}
-                                      </span>
-                                    );
-                                  })()}
+                            {detailParticipants.map((p) => {
+                              const alertForStudent = alerts.find((a) => a.studentId === p.studentId);
+                              return (
+                                <tr key={p.studentId}>
+                                  <td className="px-4 py-2 text-gray-800">{p.studentId}</td>
+                                  <td className="px-4 py-2 text-gray-700">{p.realName || '-'}</td>
+                                  <td className="px-4 py-2 text-gray-700">{p.username || '-'}</td>
+                                  <td className="px-4 py-2">
+                                    {(() => {
+                                      const s = getParticipantStatus(p);
+                                      return (
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs ${s.badgeClass}`}>
+                                          {s.label}
+                                        </span>
+                                      );
+                                    })()}
+                                  </td>
+                                  <td className="px-4 py-2">
+                                    {alertForStudent ? (
+                                      <button
+                                        onClick={() => setActiveAlert(alertForStudent)}
+                                        className="relative px-3 py-1 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100"
+                                        title="查看告警截图与操作"
+                                      >
+                                        <AlertTriangle size={14} className="inline mr-1" />
+                                        告警
+                                        {alertForStudent.status === 'pending' && (
+                                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+                                        )}
+                                      </button>
+                                    ) : (
+                                      <span className="text-xs text-gray-400">正常</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold text-gray-800">监考告警</h3>
+                      <span className="text-xs text-gray-500">{alertsLoading ? '加载中...' : `共 ${alerts.length} 条`}</span>
+                    </div>
+                    {alerts.length === 0 ? (
+                      <div className="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-lg p-3">
+                        暂无告警
+                      </div>
+                    ) : (
+                      <div className="overflow-auto max-h-72">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-gray-500 font-medium">学生ID</th>
+                              <th className="px-3 py-2 text-left text-gray-500 font-medium">状态</th>
+                              <th className="px-3 py-2 text-left text-gray-500 font-medium">时间</th>
+                              <th className="px-3 py-2 text-left text-gray-500 font-medium">相似度</th>
+                              <th className="px-3 py-2 text-left text-gray-500 font-medium">原因/备注</th>
+                              <th className="px-3 py-2 text-left text-gray-500 font-medium">截图</th>
+                              <th className="px-3 py-2 text-left text-gray-500 font-medium">操作</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {alerts.map((a) => (
+                              <tr key={a.alertId}>
+                                <td className="px-3 py-2 text-gray-800">{a.studentId}</td>
+                                <td className="px-3 py-2">
+                                  <span
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                      a.status === 'pending'
+                                        ? 'bg-red-50 text-red-700 border border-red-200'
+                                        : a.status === 'warned'
+                                        ? 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                                        : a.status === 'forced_submit'
+                                        ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                                      : 'bg-green-50 text-green-700 border border-green-200'
+                                    }`}
+                                  >
+                                    {a.status}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 text-gray-600">
+                                  {a.createdAt ? new Date(a.createdAt).toLocaleString('zh-CN') : '-'}
+                                </td>
+                                <td className="px-3 py-2 text-gray-700">{a.similarity ?? '-'}</td>
+                                <td className="px-3 py-2 text-gray-700 max-w-[160px] truncate" title={a.notes}>
+                                  {a.notes || '-'}
+                                </td>
+                                <td className="px-3 py-2">
+                                  {a.capturedImg ? (
+                                    <img src={a.capturedImg} alt="face" className="w-20 h-14 object-cover rounded border" />
+                                  ) : (
+                                    '-'
+                                  )}
+                                </td>
+                                <td className="px-3 py-2 flex gap-2">
+                                  <button
+                                    onClick={() => handleWarn(a.alertId)}
+                                    className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 text-xs"
+                                  >
+                                    警告
+                                  </button>
+                                  <button
+                                    onClick={() => handleForce(a.alertId)}
+                                    className="px-3 py-1 bg-red-100 text-red-800 rounded hover:bg-red-200 text-xs"
+                                  >
+                                    强制交卷
+                                  </button>
                                 </td>
                               </tr>
                             ))}
@@ -399,6 +567,63 @@ const ExamList: React.FC = () => {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeAlert && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl">
+            <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
+              <div>
+                <div className="text-sm text-gray-500">考生ID：{activeAlert.studentId}</div>
+                <div className="text-lg font-semibold text-gray-900">监考告警</div>
+              </div>
+              <button onClick={() => setActiveAlert(null)} className="text-gray-400 hover:text-gray-600">
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3 text-sm text-gray-700">
+              <div className="flex flex-wrap gap-4">
+                <span>
+                  状态：
+                  <strong className="ml-1 text-red-600">{activeAlert.status}</strong>
+                </span>
+                <span>相似度：{activeAlert.similarity ?? '-'}</span>
+                <span>时间：{activeAlert.createdAt ? new Date(activeAlert.createdAt).toLocaleString('zh-CN') : '-'}</span>
+              </div>
+              <div>
+                原因/备注：<span className="text-gray-800">{activeAlert.notes || '人脸比对未通过或未检测到人脸'}</span>
+              </div>
+              {activeAlert.capturedImg && (
+                <div>
+                  <div className="text-gray-500 mb-1">系统截图</div>
+                  <img src={activeAlert.capturedImg} alt="captured" className="w-full max-h-80 object-contain rounded border" />
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3">
+              <button
+                onClick={() => handleWarn(activeAlert.alertId)}
+                className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200"
+              >
+                警告学生
+              </button>
+              <button
+                onClick={() => handleForce(activeAlert.alertId)}
+                className="px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200"
+              >
+                强制交卷
+              </button>
+              <button
+                onClick={() => setActiveAlert(null)}
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200"
+              >
+                关闭
+              </button>
             </div>
           </div>
         </div>
@@ -534,5 +759,21 @@ const ExamList: React.FC = () => {
     </div>
   );
 };
+
+const FileIcon = () => (
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+    <polyline points="14 2 14 8 20 8" />
+  </svg>
+);
 
 export default ExamList;

@@ -486,6 +486,40 @@ class ApiService {
     });
   }
 
+  /* ---------------------- Proctor / Alerts ---------------------- */
+  async triggerManualVerify(examId: number, notes?: string) {
+    return this.request<void>(`/api/proctor/commands/manual-verify?examId=${examId}`, {
+      method: 'POST',
+      body: notes ? JSON.stringify({ notes }) : undefined,
+    });
+  }
+
+  async listProctorAlerts(examId: number) {
+    return this.request<ProctorAlert[]>(`/api/proctor/alerts?examId=${examId}`);
+  }
+
+  async warnAlert(alertId: number, notes?: string) {
+    return this.request<ProctorAlert>(`/api/proctor/alerts/${alertId}/warn`, {
+      method: 'POST',
+      body: notes ? JSON.stringify({ notes }) : undefined,
+    });
+  }
+
+  async forceSubmitAlert(alertId: number, notes?: string) {
+    return this.request<ProctorAlert>(`/api/proctor/alerts/${alertId}/force-submit`, {
+      method: 'POST',
+      body: notes ? JSON.stringify({ notes }) : undefined,
+    });
+  }
+
+  async pollProctorCommands(examId: number, studentId: number) {
+    return this.request<ProctorCommand[]>(`/api/proctor/commands?examId=${examId}&studentId=${studentId}`);
+  }
+
+  async markCommandDelivered(cmdId: number) {
+    return this.request<void>(`/api/proctor/commands/${cmdId}/delivered`, { method: 'POST' });
+  }
+
   async enterPortalExam(examId: number) {
     const data = await this.request<{ exam: any; participant: any }>(`/api/portal/exams/${examId}/enter`, {
       method: 'POST',

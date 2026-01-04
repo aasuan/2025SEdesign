@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.exp.iexsys.mapper.ProctorAlertMapper">
+
+    <resultMap id="AlertResultMap" type="org.exp.iexsys.domain.ProctorAlert">
+        <id property="alertId" column="alert_id"/>
+        <result property="examId" column="exam_id"/>
+        <result property="studentId" column="student_id"/>
+        <result property="capturedImg" column="captured_img"/>
+        <result property="similarity" column="similarity"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="handledBy" column="handled_by"/>
+        <result property="handledAt" column="handled_at"/>
+        <result property="notes" column="notes"/>
+    </resultMap>
+
+    <sql id="BaseColumns">
+        alert_id, exam_id, student_id, captured_img, similarity, status, created_at, handled_by, handled_at, notes
+    </sql>
+
+    <insert id="insert" parameterType="org.exp.iexsys.domain.ProctorAlert" useGeneratedKeys="true" keyProperty="alertId">
+        INSERT INTO exam_proctor_alert (exam_id, student_id, captured_img, similarity, status, notes)
+        VALUES (#{examId}, #{studentId}, #{capturedImg}, #{similarity}, #{status}, #{notes})
+    </insert>
+
+    <select id="listByExam" resultMap="AlertResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM exam_proctor_alert
+        WHERE exam_id = #{examId}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findById" parameterType="long" resultMap="AlertResultMap">
+        SELECT
+        <include refid="BaseColumns"/>
+        FROM exam_proctor_alert
+        WHERE alert_id = #{alertId}
+    </select>
+
+    <update id="updateStatus">
+        UPDATE exam_proctor_alert
+        SET status = #{status},
+            handled_by = #{handledBy},
+            handled_at = NOW()
+        WHERE alert_id = #{alertId}
+    </update>
+
+</mapper>

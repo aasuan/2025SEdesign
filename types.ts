@@ -132,3 +132,29 @@ export interface DashboardStats {
   pendingGrading: number;
   averageScore?: number;
 }
+
+// Proctoring
+export interface ProctorAlert {
+  alertId: number;
+  examId: number;
+  studentId: number;
+  capturedImg: string;
+  similarity?: number;
+  status: 'pending' | 'warned' | 'forced_submit' | 'resolved';
+  createdAt?: string;
+  handledBy?: number;
+  handledAt?: string;
+  notes?: string;
+}
+
+export interface ProctorCommand {
+  cmdId: number;
+  examId: number;
+  studentId: number;
+  cmdType: 'warn' | 'force_submit' | 'manual_verify';
+  alertId?: number;
+  payload?: string;
+  delivered?: boolean;
+  createdAt?: string;
+  deliveredAt?: string;
+}
