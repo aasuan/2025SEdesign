@@ -80,6 +80,10 @@ public class ProctorServiceImpl implements ProctorService {
             throw new IllegalArgumentException("告警不存在");
         }
         alertMapper.updateStatus(alertId, status, teacherId);
+        // 被强制提交时，直接将考生状态标记为已提交，防止重新进入考试
+        if ("force_submit".equalsIgnoreCase(cmdType)) {
+            examParticipantMapper.markSubmitted(existing.getExamId(), existing.getStudentId());
+        }
         ProctorCommand cmd = new ProctorCommand();
         cmd.setExamId(existing.getExamId());
         cmd.setStudentId(existing.getStudentId());

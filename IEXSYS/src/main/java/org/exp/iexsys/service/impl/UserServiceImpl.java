@@ -3,6 +3,7 @@ package org.exp.iexsys.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.exp.iexsys.domain.User;
+import org.exp.iexsys.dto.AdminUpdateUserRequest;
 import org.exp.iexsys.dto.RegisterRequest;
 import org.exp.iexsys.mapper.UserMapper;
 import org.exp.iexsys.service.UserService;
@@ -27,6 +28,9 @@ public class UserServiceImpl implements UserService {
     private static final String ROLE_ADMIN = "Admin";
     private static final String ROLE_TEACHER = "Teacher";
     private static final String ROLE_STUDENT = "Student";
+    private static final String STATUS_ACTIVE = "Active";
+    private static final String STATUS_INACTIVE = "Inactive";
+    private static final String STATUS_LOCKED = "Locked";
 
     private String normalizeRole(String role) {
         if (!StringUtils.hasText(role)) {
@@ -39,6 +43,20 @@ public class UserServiceImpl implements UserService {
                 return role.trim();
             default:
                 return ROLE_STUDENT;
+        }
+    }
+
+    private String normalizeStatus(String status) {
+        if (!StringUtils.hasText(status)) {
+            return STATUS_ACTIVE;
+        }
+        switch (status.trim()) {
+            case STATUS_ACTIVE:
+            case STATUS_INACTIVE:
+            case STATUS_LOCKED:
+                return status.trim();
+            default:
+                return STATUS_ACTIVE;
         }
     }
 
@@ -149,5 +167,49 @@ public class UserServiceImpl implements UserService {
         int rows = (limit == null || limit <= 0 || limit > 50) ? 20 : limit;
         String kw = StringUtils.hasText(keyword) ? keyword.trim() : "";
         return userMapper.searchByKeyword(kw, rows);
+    }
+
+    @Override
+    public User adminUpdateUser(Long userId, AdminUpdateUserRequest request) {
+        if (userId == null) {
+            throw new IllegalArgumentException("用户ID不能为空");
+        }
+        User existing = userMapper.selectById(userId);
+        if (existing == null) {
+            throw new IllegalArgumentException("用户不存在");
+        }
+        String username = request.getUsername();
+        if (!StringUtils.hasText(username)) {
+            throw new IllegalArgumentException("用户名不能为空");
+        }
+        User byUsername = userMapper.selectByUsername(username.trim());
+        if (byUsername != null && !byUsername.getId().equals(userId)) {
+            throw new IllegalArgumentException("用户名已被占用");
+        }
+        String email = request.getEmail();
+        if (StringUtils.hasText(email)) {
+            User byEmail = userMapper.selectByEmail(email.trim());
+            if (byEmail != null && !byEmail.getId().equals(userId)) {
+                throw new IllegalArgumentException("邮箱已被占用");
+            }
+        }
+        String phone = request.getPhone();
+        if (StringUtils.hasText(phone)) {
+            User byPhone = userMapper.selectByPhone(phone.trim());
+            if (byPhone != null && !byPhone.getId().equals(userId)) {
+                throw new IllegalArgumentException("手机号已被其他账户绑定");
+            }
+        }
+        existing.setUsername(username.trim());
+        existing.setRealName(request.getRealName());
+        existing.setEmail(StringUtils.hasText(email) ? email.trim() : null);
+        existing.setPhone(StringUtils.hasText(phone) ? phone.trim() : null);
+        existing.setUserRole(normalizeRole(request.getUserRole()));
+        existing.setStatus(normalizeStatus(request.getStatus()));
+        int rows = userMapper.updateUser(existing);
+        if (rows <= 0) {
+            throw new IllegalStateException("更新用户失败，请稍后重试");
+        }
+        return userMapper.selectById(userId);
     }
 }

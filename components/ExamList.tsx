@@ -1,7 +1,8 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { Exam, ExamParticipant, Paper, UserProfile, ProctorAlert } from '../types';
-import { Plus, Edit2, X, Calendar, Clock, FileText, Eye, AlertTriangle } from 'lucide-react';
+import { Exam, ExamParticipant, Paper, UserProfile, ProctorAlert, ScoreRecord } from '../types';
+import { Plus, Edit2, X, Calendar, Clock, FileText, Eye, AlertTriangle, BarChart3, Loader2 } from 'lucide-react';
+import { getAIAnalysis } from '../services/geminiService';
 
 const ExamList: React.FC = () => {
   const [exams, setExams] = useState<Exam[]>([]);
@@ -27,6 +28,11 @@ const ExamList: React.FC = () => {
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [pendingMap, setPendingMap] = useState<Record<number, boolean>>({});
   const [activeAlert, setActiveAlert] = useState<ProctorAlert | null>(null);
+  const [scoreRecords, setScoreRecords] = useState<ScoreRecord[]>([]);
+  const [scoreSummary, setScoreSummary] = useState<any>(null);
+  const [scoresLoading, setScoresLoading] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<string>('');
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     fetchExams();
@@ -152,26 +158,48 @@ const ExamList: React.FC = () => {
     if (!silent) {
       setDetailLoading(true);
       setAlertsLoading(true);
+      setScoresLoading(true);
+      setAiAnalysis('');
     }
     try {
-      const [full, participants, alertList] = await Promise.all([
+      const [full, participants, alertList, scores] = await Promise.all([
         api.getExamDetails(examId),
         api.getExamParticipants(examId),
         api.listProctorAlerts(examId),
+        api.getExamScores(examId),
       ]);
       setDetailExam(full || detailExam);
       setDetailParticipants(participants || []);
       setAlerts(alertList || []);
+      setScoreRecords(scores?.records || []);
+      setScoreSummary(scores?.summary || null);
       setPendingMap((prev) => ({
         ...prev,
         [examId]: (alertList || []).some((a) => a.status === 'pending'),
       }));
+      if (!silent && scores?.records?.length) {
+        try {
+          setAiLoading(true);
+          const nums = scores.records
+            .map((r: any) => Number((r as any).totalScore))
+            .filter((n) => !Number.isNaN(n));
+          const aiText = await getAIAnalysis(full?.examName || `考试${examId}`, nums);
+          setAiAnalysis(aiText || '');
+        } catch (e) {
+          setAiAnalysis('');
+        } finally {
+          setAiLoading(false);
+        }
+      } else if (!silent) {
+        setAiAnalysis('');
+      }
     } catch {
       /* keep previous detail on error */
     } finally {
       if (!silent) {
         setDetailLoading(false);
         setAlertsLoading(false);
+        setScoresLoading(false);
       }
     }
   };
@@ -393,7 +421,7 @@ const ExamList: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               {detailLoading && <div className="text-gray-500">加载中...</div>}
 
               {!detailLoading && detailExam && (
@@ -564,6 +592,105 @@ const ExamList: React.FC = () => {
                         </table>
                       </div>
                     )}
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-800">成绩与AI解析</h3>
+                    {detailExam && (
+                    <button
+                      onClick={() => {
+                        setIsDetailOpen(false);
+                        navigate(`/exams/${detailExam.examId}/scores`);
+                      }}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-blue-700"
+                    >
+                      <BarChart3 size={16} /> 查看成绩解析
+                    </button>
+                  )}
+                  </div>
+
+                  <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-10 w-10 rounded-lg bg-blue-50 text-primary flex items-center justify-center">
+                          <BarChart3 />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-800">成绩概览</h3>
+                          <p className="text-xs text-gray-500">查看本场考试成绩分布与AI解析</p>
+                        </div>
+                      </div>
+                      {scoresLoading && (
+                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                          <Loader2 className="animate-spin" size={14} /> 正在加载成绩...
+                        </div>
+                      )}
+                    </div>
+
+                    {scoreSummary && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                          <div className="text-xs text-gray-500">参考人数</div>
+                          <div className="text-lg font-semibold text-gray-900">{scoreSummary.totalStudents || 0}</div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                          <div className="text-xs text-gray-500">平均分</div>
+                          <div className="text-lg font-semibold text-gray-900">
+                            {(scoreSummary.avgScore || 0).toFixed ? scoreSummary.avgScore.toFixed(1) : scoreSummary.avgScore}
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                          <div className="text-xs text-gray-500">最高分 / 最低分</div>
+                          <div className="text-lg font-semibold text-gray-900">
+                            {scoreSummary.maxScore || 0} / {scoreSummary.minScore || 0}
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                          <div className="text-xs text-gray-500">及格人数</div>
+                          <div className="text-lg font-semibold text-gray-900">{scoreSummary.passCount || 0}</div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="overflow-auto border border-gray-100 rounded-lg">
+                      <table className="min-w-full text-sm divide-y divide-gray-100">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs text-gray-500">学号</th>
+                            <th className="px-4 py-2 text-left text-xs text-gray-500">姓名</th>
+                            <th className="px-4 py-2 text-left text-xs text-gray-500">得分</th>
+                            <th className="px-4 py-2 text-left text-xs text-gray-500">名次</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {(scoreRecords || []).map((r) => (
+                            <tr key={r.recordId}>
+                              <td className="px-4 py-2 text-gray-800">{r.studentId}</td>
+                              <td className="px-4 py-2 text-gray-700">{r.realName || r.username || '-'}</td>
+                              <td className="px-4 py-2 text-gray-900 font-semibold">{r.totalScore}</td>
+                              <td className="px-4 py-2 text-gray-700">{r.ranking ?? '-'}</td>
+                            </tr>
+                          ))}
+                          {(!scoreRecords || scoreRecords.length === 0) && (
+                            <tr>
+                              <td colSpan={4} className="px-4 py-3 text-center text-gray-500">
+                                暂无成绩数据
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="bg-gray-50 border border-dashed border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold">AI 成绩解析</span>
+                        {aiLoading && <Loader2 className="animate-spin text-primary" size={16} />}
+                      </div>
+                      <p className="whitespace-pre-line text-gray-700">
+                        {aiAnalysis || '暂无AI解析，等待成绩数据或稍后重试。'}
+                      </p>
+                    </div>
                   </div>
                 </>
               )}

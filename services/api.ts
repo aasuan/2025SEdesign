@@ -30,7 +30,21 @@ class ApiService {
 
   /* ---------------------- helpers ---------------------- */
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const method = (init.method || 'GET').toUpperCase();
+    const started = performance.now();
+    const url = `${BASE_URL}${path}`;
+    // 记录前端请求
+    try {
+      const previewBody =
+        typeof init.body === 'string' && init.body.length > 400
+          ? `${init.body.slice(0, 400)}...(truncated)`
+          : init.body;
+      console.info(`[API][req] ${method} ${path}`, previewBody || '');
+    } catch {
+      /* ignore logging errors */
+    }
+
+    const res = await fetch(url, {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
@@ -38,7 +52,7 @@ class ApiService {
       },
       ...init,
     });
-
+    const duration = Math.round(performance.now() - started);
     const text = await res.text();
     let body: ApiResponse<T>;
     try {
@@ -48,8 +62,10 @@ class ApiService {
     }
 
     if (!res.ok || body.code !== 0) {
+      console.error(`[API][res] ${method} ${path} ${res.status} ${duration}ms`, body?.message);
       throw new Error(body?.message || `HTTP ${res.status}`);
     }
+    console.info(`[API][res] ${method} ${path} ${res.status} ${duration}ms`, body?.message || 'success');
     return body.data;
   }
 
@@ -467,6 +483,27 @@ class ApiService {
     return this.request<UserProfile[]>(`/api/users?${query.toString()}`);
   }
 
+  async updateUserByAdmin(
+    userId: number,
+    payload: {
+      username: string;
+      realName: string;
+      email?: string;
+      phone?: string;
+      userRole: string;
+      status?: string;
+    },
+  ): Promise<UserProfile> {
+    const data = await this.request<UserProfile>(`/api/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    if (this.currentUser?.id === data.id) {
+      this.currentUser = { ...this.currentUser, ...data };
+    }
+    return data;
+  }
+
   async getPortalExams(): Promise<Exam[]> {
     const data = await this.request<Array<{ exam: any; participant: any }>>('/api/portal/exams');
     if (!Array.isArray(data)) return [];
@@ -634,6 +671,10 @@ class ApiService {
   async getMyScores(): Promise<{ records: ScoreRecord[]; summary: any }> {
     const data = await this.request<{ records: ScoreRecord[]; summary: any }>('/api/scores/me');
     return data;
+  }
+
+  async getExamScores(examId: number): Promise<{ records: ScoreRecord[]; summary: any }> {
+    return this.request<{ records: ScoreRecord[]; summary: any }>(`/api/scores/exam?examId=${examId}`);
   }
 
   async getExamStats() {

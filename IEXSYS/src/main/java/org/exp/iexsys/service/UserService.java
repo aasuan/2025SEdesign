@@ -1,6 +1,7 @@
 package org.exp.iexsys.service;
 
 import org.exp.iexsys.domain.User;
+import org.exp.iexsys.dto.AdminUpdateUserRequest;
 import org.exp.iexsys.dto.RegisterRequest;
 
 public interface UserService {
@@ -33,4 +34,9 @@ public interface UserService {
      * 按用户名或真实姓名模糊搜索，默认最多返回 20 条
      */
     java.util.List<User> search(String keyword, Integer limit);
+
+    /**
+     * 管理员修改用户信息
+     */
+    User adminUpdateUser(Long userId, AdminUpdateUserRequest request);
 }

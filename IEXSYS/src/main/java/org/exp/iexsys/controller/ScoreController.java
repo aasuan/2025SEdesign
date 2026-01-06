@@ -6,6 +6,7 @@ import org.exp.iexsys.domain.ScoreRecord;
 import org.exp.iexsys.dto.UserProfile;
 import org.exp.iexsys.service.ScoreService;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -49,5 +50,18 @@ public class ScoreController {
             return ApiResponse.failure(404, "Exam not found");
         }
         return ApiResponse.success(detail);
+    }
+
+    @GetMapping("/exam")
+    public ApiResponse<Map<String, Object>> examScores(@RequestParam("examId") Long examId, HttpSession session) {
+        UserProfile user = (UserProfile) session.getAttribute(SESSION_KEY);
+        if (user == null) {
+            return ApiResponse.failure(401, "Not logged in");
+        }
+        if (!"Teacher".equalsIgnoreCase(user.getUserRole()) && !"Admin".equalsIgnoreCase(user.getUserRole())) {
+            return ApiResponse.failure(403, "Forbidden");
+        }
+        Map<String, Object> payload = scoreService.examScores(examId);
+        return ApiResponse.success(payload);
     }
 }

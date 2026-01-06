@@ -8,6 +8,8 @@
         <result property="examId" column="exam_id"/>
         <result property="paperId" column="paper_id"/>
         <result property="studentId" column="student_id"/>
+        <result property="username" column="username"/>
+        <result property="realName" column="real_name"/>
         <result property="totalScore" column="total_score"/>
         <result property="isFinal" column="is_final"/>
         <result property="ranking" column="ranking"/>
@@ -25,6 +27,8 @@
                sr.exam_id,
                sr.paper_id,
                sr.student_id,
+               u.username,
+               u.real_name,
                sr.total_score,
                sr.is_final,
                sr.ranking,
@@ -36,6 +40,7 @@
                e.end_time,
                e.status
         FROM score_record sr
+                 LEFT JOIN user u ON sr.student_id = u.user_id
                  LEFT JOIN exam e ON sr.exam_id = e.exam_id
         WHERE sr.student_id = #{studentId}
         ORDER BY sr.updated_at DESC
@@ -56,6 +61,8 @@
                sr.exam_id,
                sr.paper_id,
                sr.student_id,
+               u.username,
+               u.real_name,
                sr.total_score,
                sr.is_final,
                sr.ranking,
@@ -67,8 +74,44 @@
                e.end_time,
                e.status
         FROM score_record sr
+                 LEFT JOIN user u ON sr.student_id = u.user_id
                  LEFT JOIN exam e ON sr.exam_id = e.exam_id
         WHERE sr.exam_id = #{examId} AND sr.student_id = #{studentId}
         LIMIT 1
+    </select>
+
+    <select id="listByExam" resultMap="ScoreRecordResultMap">
+        SELECT sr.record_id,
+               sr.exam_id,
+               sr.paper_id,
+               sr.student_id,
+               u.username,
+               u.real_name,
+               sr.total_score,
+               sr.is_final,
+               sr.ranking,
+               sr.created_at,
+               sr.updated_at,
+               sr.extra_info,
+               e.exam_name,
+               e.start_time,
+               e.end_time,
+               e.status
+        FROM score_record sr
+                 LEFT JOIN user u ON sr.student_id = u.user_id
+                 LEFT JOIN exam e ON sr.exam_id = e.exam_id
+        WHERE sr.exam_id = #{examId}
+        ORDER BY sr.total_score DESC
+    </select>
+
+    <select id="summaryByExam" resultType="map">
+        SELECT
+            COUNT(1)                                    AS totalStudents,
+            COALESCE(AVG(sr.total_score),0)             AS avgScore,
+            COALESCE(MAX(sr.total_score),0)             AS maxScore,
+            COALESCE(MIN(sr.total_score),0)             AS minScore,
+            SUM(CASE WHEN sr.total_score >= #{passLine} THEN 1 ELSE 0 END) AS passCount
+        FROM score_record sr
+        WHERE sr.exam_id = #{examId}
     </select>
 </mapper>

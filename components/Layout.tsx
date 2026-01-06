@@ -10,7 +10,8 @@ import {
   BarChart2, 
   User,
   Layers, // Added Layers icon
-  Settings // Added Settings icon for Profile
+  Settings, // Added Settings icon for Profile
+  Shield
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -32,6 +33,13 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
     { icon: Settings, label: '个人中心', path: '/profile' }, // Added Profile
   ];
 
+  // 管理员界面仅保留仪表盘、用户管理、个人中心
+  const adminLinks = [
+    { icon: LayoutDashboard, label: '仪表盘', path: '/' },
+    { icon: Shield, label: '用户管理', path: '/admin/users' },
+    { icon: Settings, label: '个人中心', path: '/profile' },
+  ];
+
   const studentLinks = [
     { icon: LayoutDashboard, label: '仪表盘', path: '/' },
     { icon: FileText, label: '我的考试', path: '/my-exams' },
@@ -39,7 +47,11 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
     { icon: Settings, label: '个人中心', path: '/profile' }, // Added Profile
   ];
 
-  const links = user.userRole === 'Teacher' || user.userRole === 'Admin' ? teacherLinks : studentLinks;
+  const links = user.userRole === 'Admin'
+    ? adminLinks
+    : user.userRole === 'Teacher'
+      ? teacherLinks
+      : studentLinks;
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -79,7 +91,9 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout }) => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{user.realName}</p>
-              <p className="text-xs text-gray-500 truncate">{user.userRole === 'Teacher' ? '教师' : '学生'}</p>
+              <p className="text-xs text-gray-500 truncate">
+                {user.userRole === 'Admin' ? '管理员' : user.userRole === 'Teacher' ? '教师' : '学生'}
+              </p>
             </div>
             <button 
               onClick={onLogout}

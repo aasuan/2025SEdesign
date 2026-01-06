@@ -15,6 +15,7 @@ const ExamPaper: React.FC = () => {
   const [previewMode, setPreviewMode] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [forcedExit, setForcedExit] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -23,6 +24,21 @@ const ExamPaper: React.FC = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const commandTimerRef = useRef<NodeJS.Timeout | null>(null);
   const autoVerifyTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const shutdownSession = () => {
+    if (commandTimerRef.current) {
+      clearInterval(commandTimerRef.current);
+      commandTimerRef.current = null;
+    }
+    if (autoVerifyTimerRef.current) {
+      clearInterval(autoVerifyTimerRef.current);
+      autoVerifyTimerRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+  };
 
   const markCameraReady = () => {
     if (!cameraReadyRef.current) {
@@ -167,9 +183,7 @@ const ExamPaper: React.FC = () => {
     };
     startCamera();
     return () => {
-      if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
-      if (commandTimerRef.current) clearInterval(commandTimerRef.current);
-      if (autoVerifyTimerRef.current) clearInterval(autoVerifyTimerRef.current);
+      shutdownSession();
     };
   }, []);
 
@@ -276,7 +290,8 @@ const ExamPaper: React.FC = () => {
       alert(cmd.payload || '疑似作弊，警告一次');
     } else if (type === 'force_submit') {
       alert(cmd.payload || '已被监考老师强制交卷');
-      await handleSubmit(true);
+      setForcedExit(true);
+      await handleSubmit(true, 'force');
     } else if (type === 'manual_verify') {
       try {
         await runVerification();
@@ -292,6 +307,7 @@ const ExamPaper: React.FC = () => {
   };
 
   const handleAnswerChange = async (qId: number, val: string) => {
+    if (forcedExit) return;
     setAnswers((prev) => ({ ...prev, [qId]: val }));
     try {
       await api.savePortalAnswer(Number(id), { questionId: qId, studentResponse: val });
@@ -301,8 +317,9 @@ const ExamPaper: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (auto = false) => {
-    if (!exam || isSubmitting) return;
+  const handleSubmit = async (auto = false, reason?: 'force') => {
+    if (!exam) return;
+    if (isSubmitting && reason !== 'force') return;
     if (!navigator.onLine) {
       alert('网络断开，答案已保存在本地，请联网后再提交。');
       return;
@@ -311,13 +328,23 @@ const ExamPaper: React.FC = () => {
     try {
       await api.submitPortalExam(exam.examId);
       if (userId && id) localStorage.removeItem(`exam_progress_${userId}_${id}`);
-      if (!auto) {
+      if (!auto && reason !== 'force') {
         alert('提交成功');
       }
       navigate('/results');
     } catch (error: any) {
-      alert(error?.message || '提交失败，请稍后重试');
-      setIsSubmitting(false);
+      if (userId && id) localStorage.removeItem(`exam_progress_${userId}_${id}`);
+      if (reason === 'force') {
+        alert(error?.message || '已被强制交卷，提交结果异常');
+        navigate('/results');
+      } else {
+        alert(error?.message || '提交失败，请稍后重试');
+        setIsSubmitting(false);
+        return;
+      }
+    } finally {
+      setForcedExit(true);
+      shutdownSession();
     }
   };
 
@@ -369,6 +396,11 @@ const ExamPaper: React.FC = () => {
       {showTimeWarning && (
         <div className="bg-yellow-50 text-yellow-800 px-6 py-3 text-center text-sm font-medium border-b border-yellow-200">
           考试时间仅剩5分钟，请尽快完成并提交。
+        </div>
+      )}
+      {forcedExit && (
+        <div className="bg-red-50 text-red-700 px-6 py-3 text-center text-sm font-medium border-b border-red-200">
+          已被监考老师强制交卷，正在退出考试...
         </div>
       )}
 

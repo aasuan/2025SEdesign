@@ -21,5 +21,7 @@ public interface UserMapper {
 
     int updateExtraInfo(@Param("id") Long id, @Param("extraInfo") String extraInfo);
 
+    int updateUser(User user);
+
     java.util.List<User> searchByKeyword(@Param("keyword") String keyword, @Param("limit") Integer limit);
 }

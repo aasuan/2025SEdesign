@@ -15,4 +15,8 @@ public interface ScoreRecordMapper {
     Map<String, Object> summaryByStudent(@Param("studentId") Long studentId, @Param("passLine") Integer passLine);
 
     ScoreRecord selectOne(@Param("examId") Long examId, @Param("studentId") Long studentId);
+
+    List<ScoreRecord> listByExam(@Param("examId") Long examId);
+
+    Map<String, Object> summaryByExam(@Param("examId") Long examId, @Param("passLine") Integer passLine);
 }

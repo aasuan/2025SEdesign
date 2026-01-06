@@ -9,6 +9,9 @@ public class ScoreRecord implements Serializable {
     private Long examId;
     private Long paperId;
     private Long studentId;
+    // 仅用于教师查看成绩时展示
+    private String username;
+    private String realName;
     private BigDecimal totalScore;
     private Boolean isFinal;
     private Integer ranking;
@@ -51,6 +54,22 @@ public class ScoreRecord implements Serializable {
 
     public void setStudentId(Long studentId) {
         this.studentId = studentId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getRealName() {
+        return realName;
+    }
+
+    public void setRealName(String realName) {
+        this.realName = realName;
     }
 
     public BigDecimal getTotalScore() {
@@ -133,4 +152,3 @@ public class ScoreRecord implements Serializable {
         this.examStatus = examStatus;
     }
 }
-

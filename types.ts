@@ -116,6 +116,8 @@ export interface ScoreRecord {
   recordId: number;
   examId: number;
   studentId: number;
+  username?: string;
+  realName?: string;
   paperId: number;
   totalScore: number;
   isFinal: boolean;

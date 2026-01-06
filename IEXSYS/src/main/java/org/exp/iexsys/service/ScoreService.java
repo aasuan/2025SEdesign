@@ -15,4 +15,9 @@ public interface ScoreService {
      * 学生查看单场考试详情（含答卷与题目）
      */
     Map<String, Object> examDetail(Long examId, Long studentId);
+
+    /**
+     * 教师查看考试成绩与汇总
+     */
+    Map<String, Object> examScores(Long examId);
 }

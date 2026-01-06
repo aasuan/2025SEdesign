@@ -76,5 +76,17 @@
         SET extra_info = #{extraInfo}, updated_at = NOW()
         WHERE user_id = #{id}
     </update>
+
+    <update id="updateUser" parameterType="org.exp.iexsys.domain.User">
+        UPDATE user
+        SET username = #{username},
+            real_name = #{realName},
+            email = #{email},
+            phone_number = #{phone},
+            user_role = #{userRole},
+            status = #{status},
+            updated_at = NOW()
+        WHERE user_id = #{id}
+    </update>
 </mapper>
 

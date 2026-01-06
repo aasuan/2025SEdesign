@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = process.env.API_KEY || 'AIzaSyDlbLA1aG71YlbBVI9irzsDZM2S7_pRumw';
+const apiKey = process.env.API_KEY || 'AIzaSyCtflmpPbrFh7KloAPGgrhvlb1xFJ0PWnE';
 const ai = new GoogleGenAI({ apiKey });
 const MODEL_CANDIDATES = [
   'models/gemini-3-flash-preview',

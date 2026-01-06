@@ -96,4 +96,26 @@ public class ScoreServiceImpl implements ScoreService {
         payload.put("scoreRecord", record);
         return payload;
     }
+
+    @Override
+    public Map<String, Object> examScores(Long examId) {
+        Exam exam = examMapper.selectById(examId);
+        if (exam == null) {
+            throw new IllegalArgumentException("Exam not found");
+        }
+        List<ScoreRecord> list = scoreRecordMapper.listByExam(examId);
+        Map<String, Object> summary = scoreRecordMapper.summaryByExam(examId, 60);
+        if (summary == null) {
+            summary = new HashMap<>();
+            summary.put("totalStudents", 0);
+            summary.put("avgScore", 0);
+            summary.put("maxScore", 0);
+            summary.put("minScore", 0);
+            summary.put("passCount", 0);
+        }
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("records", list);
+        payload.put("summary", summary);
+        return payload;
+    }
 }

@@ -15,6 +15,8 @@ import StudentExamList from './components/StudentExamList'; // Import StudentExa
 import StudentResults from './components/StudentResults'; // Import StudentResults
 import StudentResultDetail from './components/StudentResultDetail'; // Import StudentResultDetail
 import Profile from './components/Profile'; // Import Profile
+import AdminUsers from './components/AdminUsers';
+import ExamScores from './components/ExamScores';
 import { UserProfile } from './types';
 import { api } from './services/api';
 
@@ -68,7 +70,9 @@ const App: React.FC = () => {
               <Route path="/my-exams" element={<StudentExamList />} />
               <Route path="/results" element={<StudentResults />} />
               <Route path="/exam-result/:id" element={<StudentResultDetail />} />
+              <Route path="/exams/:id/scores" element={<ExamScores />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/admin/users" element={<AdminUsers currentUser={user} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>
